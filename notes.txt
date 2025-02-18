@@ -1,0 +1,78 @@
+
+
+#( this is my programming language )#
+
+fn main(){
+    
+    decl x, y
+    x : int = 4
+    y : float = 5
+    print(x)
+    print(y)
+
+    x = x / 10
+    for i in 0..10 (
+        print(i)
+    )
+}
+
+Open questions:
+Optional typing?
+Variable declaration (optional type)
+Variable redeclaration
+scope : do loops have scopes? Independant scopes?
+problem : shadowing problem without let keyword
+{
+   
+ 
+}
+
+variable declaration:
+javascript/rust: special let keyword
+c++: must specify type
+python: no types
+
+variable redefinition:
+rust/c++: variable cannot be redefined
+python: type may change
+
+
+scope rules:
+normal language: curly braces defines a scope
+python: each function is a scope
+
+same names rules:
+x = 10
+x = 12
+
+
+
+fn main(args : &str[]) -> None {
+    x : int = 4
+    y : complex = 5
+    z : complex = x + y
+    chungus : [][]dict<int, string>;
+
+    retype x = ...;
+    
+    init i, j
+    for i in 0..10 {
+        print(i)
+    }
+    print(i)
+
+}
+
+fn main(str[]) -> None {
+    x = 4;
+    y = 5;
+    print(x)
+    print(y)
+}
+
+fn main(str[]) -> Int {
+    x = 4;
+    y = 5;
+    print(x)
+    print(y)
+}
