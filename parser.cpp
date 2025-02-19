@@ -144,7 +144,6 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
     stack<Token> operations;
     stack<Expression> expr;
 
-    bool terminate = false;
     // shunting yard algorithm
     
     for(; it != tokens.end(); it++){
@@ -587,6 +586,25 @@ CodeBlockOption parseCodeBlock(const vector<Token>& tokens, SymbolTable& parent,
             cout << "Error: Reached end of file unexpectedly in parseCodeBlock" << endl;
             ret.valid = false;
             break;
+        } else if(tok->type == CLOSED_BRACKET){
+            if(tok->value == "}"){
+                ret.end = tok + 1;
+                break;
+            } else {
+                ret.valid = false;
+                cout << "Error: unexpected closing bracket" << endl;
+                return ret;
+            }
+        } else if(tok->value == "{"){
+            CodeBlockOption result = parseCodeBlock(tokens, ret.codeblock.vars, tok + 1);
+            if(!result.valid){
+                ret.valid = false;
+                return ret;
+            } 
+            Line x = {result.codeblock};
+            ret.codeblock.lines.push_back(x);
+            tok = result.end;
+            continue;
         }
         // cout << "Parsing line: ";
         printToken(*tok);
@@ -600,13 +618,13 @@ CodeBlockOption parseCodeBlock(const vector<Token>& tokens, SymbolTable& parent,
             // push line if not empty
             // print(ret.codeblock.lines.size());
             ret.codeblock.lines.push_back(line_result.line);
-
         } 
         if(line_result.end->value == "}"){
-            ret.end = line_result.end;
+            ret.end = line_result.end + 1;
             break;
         }
-        tok = line_result.end + 1;  // start of next line
+        // update loop variables
+        tok = line_result.end + 1;
     }
     return ret;
 }
@@ -674,7 +692,7 @@ ParseFunction parseFunction(const vector<Token>& tokens, Iter start){
         cout << "Invalid function declaration (7)" << endl; 
         ret.valid = false; return ret;
     }
-
+    
     // parse the code block 
     SymbolTable vars{};
     CodeBlockOption result = parseCodeBlock(tokens, vars, index);

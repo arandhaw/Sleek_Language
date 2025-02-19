@@ -3,6 +3,7 @@
 func main() -> None { 
     x = 134
     y = 123_345 + 324.14
-    z = x + y
-    w = round(12.4)
+    {
+        y = y + 3
+    }
 }

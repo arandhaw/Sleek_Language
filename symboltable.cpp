@@ -195,21 +195,21 @@ bool SymbolTable::search_and_copy(string name){
     else if(parent == nullptr)
         return false;
     else {
-        // if(parent->search_and_copy(name) == true){
-        //     // bring entry into current scope
-        //     VarInfo vi = parent->table[name];
-        //     vi.decl = -1;
-        //     if(vi.def != INT_MAX){
-        //         vi.def = -1;
-        //     }
-        //     if(vi.dest != INT_MAX){
-        //         vi.dest = -1;
-        //     }
-        //     table.insert({name, vi});
-        //     return true;
-        // } else {
-        //     return false;
-        // }
+        if(parent->search_and_copy(name) == true){
+            // bring entry into current scope
+            VarInfo vi = parent->table[name];
+            vi.decl = -1;
+            if(vi.def != INT_MAX){
+                vi.def = -1;
+            }
+            if(vi.dest != INT_MAX){
+                vi.dest = -1;
+            }
+            table.insert({name, vi});
+            return true;
+        } else {
+            return false;
+        }
         return false;
     }
 }

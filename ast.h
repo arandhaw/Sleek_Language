@@ -93,8 +93,9 @@ struct Multi_Assignment {
 };
 
 // Line, Codeblock, Function and Program definitions
+struct Codeblock;
 using Basic_Line = variant<Expression, Assignment, Multi_Assignment, Empty>;
-using Line = variant<Basic_Line>;
+using Line = variant<Basic_Line, Codeblock>;
 // using Codeblock = vector<Line>;
 
 struct Codeblock {

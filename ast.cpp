@@ -34,7 +34,6 @@ Array_index::Array_index(Token name) {
 
 #include "symboltable.cpp"
 
-
 ///////////////
 // Methods for printing expressions
 //////////////
@@ -116,20 +115,23 @@ void printBasicLine(const Basic_Line& line){
     cout << endl;
 }
 
-void printCodeblock(Codeblock cb){
-    for(Line& line : cb.lines){
+void printCodeblock(const Codeblock& cb){
+    print("{");
+    for(const Line& line : cb.lines){
         if(holds_alternative<Basic_Line>(line)){
             printBasicLine(get<Basic_Line>(line));
+        } else if(holds_alternative<Codeblock>(line)){
+            printCodeblock(get<Codeblock>(line));
         }
     }
-    print("Symboltable {");
+    print("Symboltable:");
     for(auto& i : cb.vars.table){
         print(i.first, ':', i.second.decl, i.second.def, i.second.dest);
     }
     print("}");
 }
 
-void printFunction(Function f){
+void printFunction(const Function& f){
     cout << f.name << "(";
     int len = f.param_names.size();
     for(int i = 0; i < len; i++){
@@ -138,12 +140,11 @@ void printFunction(Function f){
             cout << ", ";
         }
     }
-    cout << ") -> " << f.return_type << " {\n";
+    cout << ") -> " << f.return_type << "\n";
     printCodeblock(f.code);
-    cout << "}\n";
 }
 
-void printProgram(Program p){
+void printProgram(const Program& p){
     printFunction(p.main);
     for(auto f = p.functions.begin(); f != p.functions.end(); f++){
         printFunction(f->second);
