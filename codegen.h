@@ -12,11 +12,12 @@ class Codegen {
         string output_file;
         std::ofstream file_stream;
         bool file_open;
-        int indent = 0;
-        string br = "\n";
+        string indent_str;
     public:
 
     void genProgram(const Program& p);
+    void genFunction(const Function& program);
+    void genMain(const Function& program);
 
     Codegen(){}
     // prepare file stream
@@ -39,36 +40,36 @@ class Codegen {
         }
     }
 
-    // print a newline
-    void line(){
-        file_stream << br;
-    }
-
-    // add a tab - the indent is increased
+    // write tab to file
     void tab(){
-        indent++;
-        if(indent){
-            br = br + "  ";
-        }
-    }
-    // delete a tab - the indent is decreased
-    void dtab(){
-        indent--;
-        if(indent < 0){
-            cout << "Error - negative indent" << endl;
-            indent = 0;
-            return;
-        } else {
-            br.pop_back();
-            br.pop_back();
-        }
+        raw(indent_str);
     }
 
+    // increase indent by 1
+    void indent(){
+        indent_str.push_back(' ');
+        indent_str.push_back(' ');
+        return;
+    }
+    // decrease the indent by 1, to minimum of zero
+    void dindent(){
+        if(indent_str.size() < 2){
+            cout << "Oops - negative indent in writer" << endl;
+        } else {
+            indent_str.pop_back();
+            indent_str.pop_back();
+        }
+    }
+    // write newline to file
+    void out(){
+        file_stream << "\n";
+    }
+    // write arguements to file, separated by space, end with newline
     template<typename T, typename...A>
     void out(const T& first, const A&...args) {
         file_stream << first;
         ((file_stream << " ", file_stream << args), ...);
-        file_stream << br;
+        file_stream << "\n";
     }
 
     //print each arguement (except first two)

@@ -3,33 +3,24 @@
 #include "utils.cpp"
 using namespace std;
 
-// struct MyInt {
-//     int value;
-//     MyInt(int value) : value(value) {
-//         cout << "created " << value << endl;
-//     }
-//     MyInt(MyInt const& copy){
-//         value = copy.value;
-//         cout << "copy created " << value << endl;
-//     }
+#include <iostream>
+#include <csignal>
+#include <cstdlib>
 
-//     MyInt(){
-//         value = 0;
-//     }
-//     ~MyInt() {
-//         cout << "destroyed " << value << endl;
-//     }
-// };
-
-// std::ostream& operator<< (std::ostream& out, const MyInt& v) {
-//     cout << v.value;
-//     return out;
-// }
+void signalHandler(int signal) {
+    if (signal == SIGSEGV) {
+        std::cerr << "Error: Segmentation fault (SIGSEGV) occurred!" << std::endl;
+        exit(1);  // Exit the program with a non-zero status
+    }
+}
 
 int main() {
-    // Write C++ code here
-    //print("hello, world");
-    cout << "hello";
-    cout << "\b\b";
+    // Register the signal handler
+    signal(SIGSEGV, signalHandler);
+
+    // Code that causes a segmentation fault (e.g., dereferencing a null pointer)
+    int* ptr = nullptr;
+    std::cout << *ptr << std::endl;  // This will cause a segmentation fault
+
     return 0;
 }

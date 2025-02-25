@@ -7,6 +7,8 @@ struct greet {
 
 int main(){
     struct greet x = {3, 5};
+    
     printf("hello world");
-    return 0;
+    fprintf(stderr, "Urk!\n");
+    return 1;
 }
