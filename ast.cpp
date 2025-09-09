@@ -27,12 +27,144 @@ Function_call::Function_call(Token name) {
 Array_index::Array_index(Token name) {
     this->name = name;
 }
-///////////////////////////////////////
-// Methods for symboltable
-///////////////////////////////////////
+/// function table
+// function table
 
+bool Function_table::add(Signature f){
+    if(f.return_type == ""){
+        f.return_type = "none";
+    }
+    Option<Signature> duplicate = search(f.name, f.param_types);
+    if(duplicate.valid == true){
+        print("Error in functiontable.add", f.name, f.param_types);
+        return false;
+    }
+    table.insert({f.name, Func_Data{f, string("$" + f.name)}});
+    return true;
+}
+// add to function table
+// return false if a duplicate signature exists
+bool Function_table::add(Signature f, const string& cname){
+    if(f.return_type == ""){
+        f.return_type = "none";
+    }
+    Option<Signature> duplicate = search(f.name, f.param_types);
+    if(duplicate.valid == true){
+        print("Error in functiontable.add", f.name, f.param_types);
+        return false;
+    }
+    table.insert({f.name, Func_Data{f, cname}});
+    return true;
+}
 
-#include "symboltable.cpp"
+// return type of function
+Option<string> Function_table::rtype(const string& name, const vector<string>& params){
+    Option<Signature> res = search(name, params);
+    Option<string> ret(true);
+    if(res.valid == false){ ret.valid = false; return ret; }
+    else {
+        ret.result = res.result.return_type;
+        return ret;
+    }
+}
+
+// search the table using the name and parameters
+Option<Signature> Function_table::search(const string& name, const vector<string>& params){
+    Option<Signature> result(false);
+    auto it = table.equal_range( name );
+    for(auto i = it.first; i != it.second; ++i){
+        vector<string> i_params = i->second.signature.param_types;
+        if(params.size() != i_params.size()){
+            continue;
+        }
+        // compare each parameter type
+        bool equal = true;
+        for(int i = 0; i < params.size(); i++){
+            if(params[i] != i_params[i]){
+                equal = false;
+                break;
+            }
+        }
+        if(equal){
+            result.result = i->second.signature;
+            result.valid = true;
+            break;
+        }
+    }
+    return result;
+}
+// return number of function with said name
+int Function_table::check(const string& name){
+    return table.count(name);
+}
+
+string Function_table::cname(const string& name, const vector<Expression>& args){
+    Option<string> result(false);
+    auto it = table.equal_range( name );
+    for(auto i = it.first; i != it.second; ++i){
+        vector<string> i_params = i->second.signature.param_types;
+        if(args.size() != i_params.size()){
+            continue;
+        }
+        // compare each parameter type
+        bool equal = true;
+        for(int i = 0; i < args.size(); i++){
+            if(args[i].type != i_params[i]){
+                equal = false;
+                break;
+            }
+        }
+        if(equal){
+            result.result = i->second.cname;
+            result.valid = true;
+            break;
+        }
+    }
+    if(result.valid == false){
+        cout << "Deep Error in codegen - function not found" << endl;
+    }
+    return result.result;
+}
+
+void Function_table::printAll(){
+    cout << "Function table:" << endl;
+    for(pair<string, Func_Data> i : table){
+        cout << i.second.signature.name << "(";
+        for(auto& j : i.second.signature.param_types){
+            cout << j << ", ";
+        }
+        cout << "\b\b) -> " << i.second.signature.return_type << endl;
+    }
+}
+
+//// print type
+// void printType(const Type_ast& t){
+//     if(HAS<Named_type>(t.info)){
+//         const Named_type& nt = get<Named_type>(t.info);
+//         print_raw(nt.name);
+//     } else if(HAS<Array_type>(t.info)){
+//         const Array_type& arr = get<Array_type>(t.info);
+//         print_raw("[");
+//         printType(*arr.type_ptr);
+//         for(int i = 0; i < arr.shape.size(); i++){
+//             print_raw(", ");
+//             print_raw(arr.shape[i]);
+//         }
+//         print_raw("]");
+//     } else if(HAS<Tuple_type>(t.info)){
+//         const Tuple_type& tup = get<Tuple_type>(t.info);
+//         print_raw("(");
+//         print_raw(tup.elements[0]);
+//         if(tup.elements.size() == 1){
+//             print_raw(",");
+//         }
+//         for(int i = 1; i < tup.elements.size(); i++){
+//             print_raw(", ");
+//             printType(tup.elements[i]);
+//         }
+//         print_raw(")");
+//     }
+// }
 
 ///////////////
 // Methods for printing expressions

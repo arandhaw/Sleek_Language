@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stack>
 #include <unordered_map>
 #include <iostream>
@@ -9,8 +11,7 @@
 
 using namespace std;
 
-// globals
-vector<vector<std::string>> operator_precedence = 
+const vector<vector<std::string>> operator_precedence = 
 {{"or"},
 {"and"},
 {"==", "!=", "<=", ">=", "<", ">"},
@@ -21,29 +22,138 @@ vector<vector<std::string>> operator_precedence =
 {"&", "++", "--"},
 {"(", "[", "."}};      // function call, array index and attribute operator
 
+const unordered_set<string> primitive_types = {"int", "float", "char", "bool", "byte", "none"};
+
+// globals
 unordered_map<std::string, int> precedence;
 Function_table func_table;
+vector<Token> tokens;
+unordered_map<string, StructInfo> struct_table;
+vector<string> struct_order;
+EntityTable entity_table;
+
 ////////////////////////
 // functions declarations
 /////////////////////////
 
 struct ParseProgram;
-ParseProgram parseProgram(const vector<Token>& tokens, Iter start);
+ParseProgram parseProgram(Iter start);
 struct ParseFunction;
-ParseFunction parseFunction(const vector<Token>& tokens, Iter start);
+ParseFunction parseFunction(Iter start);
 struct CodeBlockOption;
-CodeBlockOption parseCodeBlock(const vector<Token>& tokens, SymbolTable& parent, Iter start);
+CodeBlockOption parseCodeBlock(Iter start, const ScopeInfo&);
 struct ParseBasicLine;
-ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, int line, Iter it);
+ParseBasicLine parseBasicLine(SymbolTable& vars, int line, Iter it);
 struct ParseMulti;
-ParseMulti parseMulti(const vector<Token>& tokens, SymbolTable& vars, Iter it);
+ParseMulti parseMulti(SymbolTable& vars, Iter it);
 struct ParseSimpleExpr;
-ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, Iter it);
-
-
+ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it);
+struct ParseIfOption;
+ParseIfOption parseIf(SymbolTable& vars, int line, Iter start_it);
+struct ParseWhileOption;
+ParseWhileOption parseWhile(SymbolTable& vars, int line, Iter start_it);
+struct ParseDeclOption;
+ParseDeclOption parseDecl(SymbolTable& vars, int line, Iter start_it);
+struct ParseDeleteOption;
+ParseDeleteOption parseDelete(SymbolTable& vars, int line, Iter start_it);
+void printErrorLine(Iter it);
+bool resolveMemoryScopes(bool hasElse, int line, 
+            SymbolTable& parent_scope, const vector<Codeblock>& child_cb);
 //helper functions
 char get_closing_bracket(char c);
 bool shunt(stack<Token>& operations, stack<Expression>& expr, Token token);
+
+struct ParseTypeOption {
+    Type_ast type;
+    bool valid;
+    Iter end;
+};
+
+// ParseTypeOption parseType(Iter start){
+//     ParseTypeOption ret;
+//     ret.valid = true;
+//     Iter it = start;
+//     if(it->type == NAME){
+//         Named_type x;
+//         x.
+//         // if(primitive_types.count(it->value)){
+//         //     x = {it->value, PRIMITIVE_TYPE};
+//         // } 
+//         // // todo: add structs and enum type
+//         // else {
+//         //     print("Error: Unknown type:", it->value);
+//         //     ret.valid = false; return ret;
+//         //     // entity_table.get(it->value);
+//         // }
+//         ret.end = it+1;
+//     } else if(it->type == OPEN_BRACKET){
+//         if(it->value == "("){
+//             Tuple_type x;
+            
+//             if((it+1)->value == ")"){
+//                 print("Error: () is not a valid type");
+//                 ret.valid = false; return ret;
+//             } 
+//             while(true){
+//                 ParseTypeOption result = parseType(it + 1);
+//                 if(result.valid == false){ ret.valid = false; return ret; }
+//                 x.elements.push_back(result.type);
+//                 if(result.end->type == COMMA){
+//                     it = result.end + 1;
+//                     // (type,) is syntax for tuple with 1 element
+//                     if(x.elements.size() == 1){ 
+//                         if(it->type == CLOSED_BRACKET && it->value == ")"){
+//                             break;
+//                         }
+//                     }
+//                     continue;
+//                 } else if(result.end->value == ")"){
+//                     ret.end = result.end + 1;
+//                     break;
+//                 }
+//             }
+//         } else if(it->value == "["){
+//             Array_type x;
+//             ParseTypeOption result = parseType(it + 1);
+//             if(result.valid == false){ ret.valid = false; return ret; }
+//             x.type_ptr = new Type_ast(result.type);
+//             it++;
+//             if(it->type != COMMA){
+//                 print("Invalid type, missing comma");
+//                 ret.valid = false; return ret;
+//             }
+//             it++;
+//             x.array_size = 1;
+//             while(true){
+//                 if(it->type != INT_LITERAL){
+//                     print("Error, expected size in array declaration");
+//                     ret.valid = false; return ret;
+//                 }
+//                 size_t dimension_size = stoi(it->value);
+//                 x.array_size *= dimension_size;
+//                 it++;
+//                 if(it->type == COMMA){
+//                     continue;
+//                 } else if(it->value == "]"){
+//                     it++;
+//                     ret.end = it;
+//                     break;
+//                 } else {
+//                     print("Error while parsing array type");
+//                     ret.valid = false; return ret;
+//                 }
+//             }
+//         } else {
+//             ret.valid = false; return ret;
+//         }
+//         return ret;
+//     }
+//     // the type is also a string
+//     for(Iter i = start; i < ret.end; i++){
+//         ret.type.name.append(i->value);
+//     }
+//     return ret;
+// }
 
 ///////////////////////////////////
 ///////////////////////////////////
@@ -131,10 +241,8 @@ struct ParseSimpleExpr {
 };
 
 // parse an expression with operators, including primitives, function calls, array indexing
-// TODO: check for validity of expression
-// TODO: get return type of expression
 // Returns on the following tokens: keyword, closing bracket, EOL, comma, or assignment
-ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, Iter it){
+ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
     ParseSimpleExpr ret;
     ret.start = it;
     ret.valid = true;
@@ -176,7 +284,6 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
             }
 
             case BOOL_LITERAL: {
-                // TODO search up in variable table
                 Expression ex = Expression(Literal(token), "bool");
                 expr.push( ex );
                 current = ITEM;
@@ -231,14 +338,18 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
                 if(token.type == BOP){ current = B_OPERATOR; } else { current = ITEM; }
                 break;
                 }
-            case ASSIGNMENT: case KEYWORD: case CLOSED_BRACKET: case DELIMITOR: case EOL: case END: {
+            case ASSIGNMENT: case KEYWORD: case CLOSED_BRACKET: case COMMA: case EOL: case END: {
                 ret.end = it;
                 goto exit;
-                break;
                 }
             case OPEN_BRACKET: {
                 char opening = token.value[0];
                 char expected = get_closing_bracket(token.value[0]);
+                // open { - end of parsing
+                if(opening == '{'){
+                    ret.end = it;
+                    goto exit;
+                }
                 // special case brackets like this: func()
                 if((it-1)->type == NAME && it->value == "(" && (it+1)->value == ")"){
                     Function_call fnc;
@@ -258,7 +369,7 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
                 }
                 // recursively parse expression inside bracket
                 // parse for comma separated expression
-                ParseMulti result = parseMulti(tokens, vars, it + 1);
+                ParseMulti result = parseMulti(vars, it + 1);
                 // cout << "Size of multi-parse " << result.multi_expr.size() << endl;
                 // cout << "result" << result.valid << endl;
                 // check for validity
@@ -353,9 +464,9 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
         ignore_checks:
         // update loop conditions
         prev = current;
-        /// end of main loop
+        // end of main loop
     }
-    
+
     exit:
     // empty stack
     while(!operations.empty()){
@@ -404,7 +515,7 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
 
     if(expr.size() != 1 || operations.size() != 0 || current != ITEM){
         ret.valid = false;
-        cout << "Error in expression parsing" << endl;
+        print("Error in expression parsing");
     } else {
         ret.expr = expr.top();
     }
@@ -414,12 +525,12 @@ ParseSimpleExpr parseSimpleExpr(const vector<Token>& tokens, SymbolTable& vars, 
 // parse a series of comma separated expressions
 // return vector of expressions + info
 // expression of at least length 1
-ParseMulti parseMulti(const vector<Token>& tokens, SymbolTable& vars,  Iter it){
+ParseMulti parseMulti(SymbolTable& vars,  Iter it){
     ParseMulti ret;
     ret.start = it;
     ret.valid = true;
     while(true){
-        ParseSimpleExpr result = parseSimpleExpr(tokens, vars, it);
+        ParseSimpleExpr result = parseSimpleExpr(vars, it);
         if(result.valid == false){
             ret.valid = false;
             
@@ -427,7 +538,7 @@ ParseMulti parseMulti(const vector<Token>& tokens, SymbolTable& vars,  Iter it){
             break;
         }
         ret.multi_expr.push_back(result.expr);
-        if(result.end->type != DELIMITOR){
+        if(result.end->type != COMMA){
             ret.end = result.end;
             break;
         }
@@ -443,22 +554,24 @@ struct ParseBasicLine {
     Iter end;
 };
 
-// parse a basic line (assignment/expression)
-// calls parseSimpleExpression, 
-ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, int line, Iter it){
+// parse a basic line (assignment/expression ended with EOL or }
+// if line ends with EOL, end is 1 token after EOL
+// if line ends with }, end is }
+// calls parseSimpleExpression
+ParseBasicLine parseBasicLine(SymbolTable& vars, int line, Iter it){
     ParseBasicLine ret;
     ret.valid = true;
     ret.empty = false;
     // empty line - line with EOL only, or simply nothing
-    if(it->type == EOL || it->value == "}"){
+    if(it->type == EOL){
         ret.valid = true;
         ret.empty = true;
         ret.line = Empty();
-        ret.end = it;
+        ret.end = it + 1;
         return ret;
-    }
-    if(it->type == NAME && (it+1)->value == "="){
-        ParseSimpleExpr second = parseSimpleExpr(tokens, vars, it+2);
+    // assignment operation like x = ...
+    } else if(it->type == NAME && (it+1)->value == "="){
+        ParseSimpleExpr second = parseSimpleExpr(vars, it+2);
         if(second.valid == false){
             cout << "Invalid expression in parseBasicLine" << endl;
             ret.valid = false;
@@ -474,19 +587,24 @@ ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, in
         Expression single = {Variable{*it}, second.expr.type};
         Assignment a{single, second.expr, *(it + 1)};
         ret.line = a;
-        ret.end = second.end;
+        if(second.end->type == EOL){ ret.end = second.end + 1; }
+        else if(second.end->value == "}"){ ret.end = second.end; }
+        else { cout << "Invalid token at end of expression" << endl; ret.valid = false; }
         return ret;
     }
-    // check if simple assignment, e.g., x 
     // expression or left-side of assignment
-    ParseSimpleExpr first = parseSimpleExpr(tokens, vars, it);
+    ParseSimpleExpr first = parseSimpleExpr(vars, it);
     if(first.valid == false){
         cout << "Invalid expression in parseBasicLine" << endl;
         ret.valid = false;
         return ret;
     }
-    // if line is expression
-    if(first.end->type == EOL || first.end->value == "}"){
+    // if line has no equals sign, is expression
+    if(first.end->type == EOL){
+        ret.end = first.end + 1;
+        ret.line = first.expr;
+        return ret;
+    } else if(first.end->value == "}"){
         ret.end = first.end;
         ret.line = first.expr;
         return ret;
@@ -498,22 +616,29 @@ ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, in
         return ret;
     }
     it = first.end + 1;
-    ParseSimpleExpr second = parseSimpleExpr(tokens, vars, it);
+    // parse the second half
+    ParseSimpleExpr second = parseSimpleExpr(vars, it);
     if(second.valid == false){
         ret.valid = false;
         cout << "Invalid right side of assignment";
         return ret;
     }
-    // must be a normal assignment operation
-    if(second.end->type == EOL || second.end->value == "}"){
+    // check that second expression ends with EOL or }
+    if(second.end->type == EOL){
+        Token op = *first.end;
+        Assignment a = {first.expr, second.expr, op};
+        ret.end = second.end + 1;
+        ret.line = a;
+        //// add to symboltable, type check
+        return ret;
+    } else if(second.end->value == "}"){
         Token op = *first.end;
         Assignment a = {first.expr, second.expr, op};
         ret.end = second.end;
         ret.line = a;
         //// add to symboltable, type check
         return ret;
-    
-    } 
+    }
     // handle multiassignment case
     // else if (second.end->value == "="){
     //     Multi_Assignment ma;
@@ -521,7 +646,7 @@ ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, in
     //     ma.left.push_back(second.expr);
     //     it = second.end + 1;
     //     while(true){
-    //         ParseSimpleExpr next = parseSimpleExpr(tokens, vars, it);
+    //         ParseSimpleExpr next = parseSimpleExpr(vars, it);
     //         if(next.valid == false){
     //             ret.valid = false;
     //             return ret;
@@ -550,7 +675,7 @@ ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, in
     }
 }
 
-// void printLexedLine(const vector<Token>& tokens, Iter it){
+// void printLexedLine(Iter it){
 //     Iter startOfLine = it;
 //     while(startOfLine != tokens.begin()){
 //         if((startOfLine - 1)->line == it->line){
@@ -567,6 +692,11 @@ ParseBasicLine parseBasicLine(const vector<Token>& tokens, SymbolTable& vars, in
 //     cout << endl;
 // }
 
+struct ParseIfOption {
+    bool valid;
+    IfBlock result;
+    Iter end;
+};
 
 struct CodeBlockOption {
     bool valid;
@@ -574,59 +704,451 @@ struct CodeBlockOption {
     Iter end;
 };
 
-// top level function, parse {}
-CodeBlockOption parseCodeBlock(const vector<Token>& tokens, SymbolTable& parent, Iter start) {
+// vars is the parent scope
+ParseIfOption parseIf(SymbolTable& vars, int line, Iter start_it){
+    ParseIfOption ret;
+    Iter it = start_it;
+    // parse if ... elif .. elif (etc)
+    int num_branches = 0;
+    do { 
+        ParseSimpleExpr result = parseSimpleExpr(vars, it+1);
+        if(result.valid == false){
+            print("Invalid expression in condition of if statement");
+            ret.valid = false; return ret;
+        } else if(result.expr.type != "bool"){
+            print("If condition is not a boolean");
+            ret.valid = false; return ret;
+        }
+        else if(result.end->value != "{"){
+            print("Invalid syntax, missing {");
+            ret.valid = false; return ret;
+        }
+        ret.result.conditions.push_back( result.expr );
+        it = result.end + 1;
+        ScopeInfo si;
+        si.return_type = vars.returnType;
+        si.parent = &vars;
+        CodeBlockOption result2 = parseCodeBlock(it, si);
+        if(result2.valid == false){ 
+            print("Invalid codeblock in if statement");
+            ret.valid = false; return ret; }
+        ret.result.branches.push_back( result2.codeblock );
+        it = result2.end;
+
+    } while(it->value == "elif");
+
+    if(it->value == "else"){
+        ret.result.hasElse = true;
+        it++;
+        if(it->value != "{"){
+            ret.valid = false; return ret;
+        }
+        it++;
+        ScopeInfo si;
+        si.return_type = vars.returnType;
+        si.parent = &vars;
+        CodeBlockOption result2 = parseCodeBlock(it, si);
+        if(result2.valid == false){ ret.valid = false; return ret; }
+        ret.result.branches.push_back(result2.codeblock);
+        it = result2.end;
+    }
+    
+    // verify memory rules
+    bool result = resolveMemoryScopes(ret.result.hasElse, line, vars, ret.result.branches);
+    ret.valid = true;
+    ret.end = it;
+    return ret;
+}
+
+struct ParseWhileOption {
+    bool valid;
+    WhileBlock result;
+    Iter end;
+};
+
+ParseWhileOption parseWhile(SymbolTable& vars, int line, Iter start_it){
+    Iter it = start_it;
+    ParseWhileOption ret;
+    ParseSimpleExpr result = parseSimpleExpr(vars, it + 1);
+    if(result.valid == false){
+        print("Error parsing condition in while loop");
+        ret.valid = false; return ret;
+    }
+    if(result.expr.type != "bool"){
+        print("Error, while condition is not a boolean");
+        ret.valid = false; return ret;
+    }
+    it = result.end;
+    if((result.end)->value != "{"){
+        print("Error in while loop, expected {");
+        ret.valid = false; return ret;
+    }
+    ScopeInfo si;
+    si.return_type = vars.returnType;
+    si.parent = &vars;
+    CodeBlockOption result2 = parseCodeBlock(result.end + 1, si);
+    if(result2.valid = false){
+        print("Error in codeblock of while loop");
+        ret.valid = false; return ret;
+    }
+    // check memory - in particular, check that outside variables are not destroyed twice
+    ret.valid = true;
+    ret.result.condition = result.expr;
+    ret.result.cb = result2.codeblock;
+    ret.end = result2.end;
+    return ret;
+}
+
+// update parent scope using information from child scope
+// hasElse determines whether the child scopes contain all possible branches
+// return boolean representing success
+// only DEEP ERRORs (aka, unexpected errors) are possible
+bool resolveMemoryScopes(bool hasElse, int line, 
+            SymbolTable& parent_scope, const vector<Codeblock>& child_cb){
+    // verify memory rules
+    // defined variables
+    if(hasElse){
+        // check if all branches return
+        bool allBranchesReturn = true;
+        for(const auto& cb : child_cb){
+            if(cb.vars.hasReturn == false){
+                allBranchesReturn = false;
+                break;
+            } 
+        }
+        if(allBranchesReturn){
+            parent_scope.hasReturn = true;
+        }
+        // check that variables were defined in all branches
+        for(const auto& entry : child_cb[0].vars.table){
+            const string& name = entry.first;
+            const VarInfo& vi = entry.second;
+            // variables that come from child scope and were defined
+            if(vi.decl == -1 && vi.def != INT_MAX && vi.def != -1){
+                // check that they were defined in all scopes
+                // they will only be in symbol table if they were used in that scope
+                bool existsInAllScopes = true;
+                auto it = child_cb.begin();
+                auto end = child_cb.end();
+                it++;
+                for(; it != end; it++){
+                    bool exists = it->vars.table.count(name) == 1;
+                    if(!exists){
+                        existsInAllScopes = false;
+                        break;
+                    }
+                }
+                if(existsInAllScopes){
+                    int result = parent_scope.assign(name, line, entry.second.type);
+                    if(result != 0){
+                        print("DEEP ERROR in ParseIf, 1");
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    // check if variable was destroyed in any branch
+    for(const auto& branch : child_cb){
+        for(const auto& entry : branch.vars.table){
+            const VarInfo& vi = entry.second;
+            // variables destroyed in this scope
+            if(vi.decl == -1 && vi.dest != INT_MAX && vi.dest != -1){
+                int result = parent_scope.destroy(entry.first, line);
+                // error shouldn't be possible, check just in case
+                if(result != 0){
+                    print("DEEP ERROR in parseIf, 2");
+                    return false;
+                }
+            }
+        }
+    }
+
+    // check if variable was destroyed in any branch
+    for(const auto& branch : child_cb){
+        for(const auto& entry : branch.vars.table){
+            const VarInfo& vi = entry.second;
+            // variables destroyed in this scope
+            if(vi.decl == -1 && vi.dest != INT_MAX && vi.dest != -1){
+                int result = parent_scope.destroy(entry.first, line);
+                // error shouldn't be possible, check just in case
+                if(result != 0){
+                    print("DEEP ERROR in parseIf, 2");
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+struct ParseDeclOption {
+    DeclVars result;
+    bool valid;
+    Iter end;
+};
+
+ParseDeclOption parseDecl(SymbolTable& vars, int line, Iter start_it){
+    // optimize by pre-allocating array
+    int count = 0;
+    for(Iter it = start_it; it->type != EOL; it++){
+        if(it->type == COMMA){
+            count++;
+        }
+    }
+    ParseDeclOption ret;
+    ret.result.variables.reserve(count);
+    // parse comma separated list of variables
+    Iter it = start_it + 1;
+    do{
+        if(it->type != NAME){
+            ret.valid = false; return ret;
+        } 
+        ret.result.variables.push_back(*it);
+        it++;
+        if(it->type == EOL){ ret.end = it + 1; break; }
+        else if(it->type == COMMA){ it++; }
+        else { ret.valid = false; return ret; }
+    } while(true);
+
+    // deal with memory stuff - declare each variable in the decl statement
+    for(Token& tok : ret.result.variables){
+        cout << "adding " << tok.value << endl;
+        bool valid = vars.declare(tok.value, line);
+        if(!valid){
+            cout << "Error in decl statement: Variable " << tok.value << " was already declared" << endl;
+            ret.valid = false;
+            return ret;
+        }
+    }
+    ret.valid = true;
+    return ret;
+}
+
+struct ParseDeleteOption {
+    DeleteVars result;
+    bool valid;
+    Iter end;
+};
+
+ParseDeleteOption parseDelete(SymbolTable& vars, int line, Iter start_it){
+    // optimize by pre-allocating array
+    int count = 0;
+    for(Iter it = start_it; it->type != EOL; it++){
+        if(it->type == COMMA){
+            count++;
+        }
+    }
+    ParseDeleteOption ret;
+    ret.result.variables.reserve(count);
+    // parse comma separated list of variables
+    Iter it = start_it + 1;
+    do{
+        if(it->type != NAME){
+            ret.valid = false; return ret;
+        } 
+        ret.result.variables.push_back(*it);
+        it++;
+        if(it->type == EOL){ ret.end = it + 1; break; }
+        else if(it->type == COMMA){ it++; }
+        else { ret.valid = false; return ret; }
+    } while(true);
+    // deal with memory stuff - delete each variable in the delete statement
+    for(Token& tok : ret.result.variables){
+        int valid = vars.destroy(tok.value, line);
+        if(valid == 0){
+            continue;
+        } else if(valid == 1){
+            cout << "Error in decl statement: Variable " << tok.value << " was already deleted" << endl;
+            ret.valid = false;
+            return ret;
+        } else if(valid == 2){
+            cout << "Error in delete statement: Attempted to delete variable that doesn't exist: " << tok.value << endl;
+            ret.valid = false; 
+            return ret;
+        }
+    }
+    ret.valid = true;
+    ret.end = it + 1;
+    return ret;
+}
+
+// top level function, parse {}, including inside a function
+// end is token after }
+CodeBlockOption parseCodeBlock(Iter start, const ScopeInfo& info) {
     CodeBlockOption ret;
     ret.valid = true;
-    ret.codeblock.vars = SymbolTable{&parent};
-    Iter tok;
-    int line = 0;
-    for(tok = start; ; line++){
-        if(tok->type == END){
+    ret.codeblock.vars = SymbolTable{info.parent};
+    SymbolTable& vars = ret.codeblock.vars; // for convieniance
+    ret.codeblock.vars.returnType = info.return_type;
+    ret.codeblock.vars.hasReturn = false;
+    // add parameters into symbol table
+    for(int i = 0; i < info.param_names.size(); i++){
+        vars.assign(info.param_names[i], 0, info.param_types[i]);
+    }
+    Iter it;
+    int line = 1;
+    for(it = start; ; line++){
+        if(it->type == END){
+            // end loop
             cout << "Error: Reached end of file unexpectedly in parseCodeBlock" << endl;
             ret.valid = false;
             break;
-        } else if(tok->type == CLOSED_BRACKET){
-            if(tok->value == "}"){
-                ret.end = tok + 1;
+        } else if(it->type == EOL){
+            // skip token
+            line--; it++;
+            continue;
+        } else if(it->type == CLOSED_BRACKET){
+            // end loop
+            if(it->value == "}"){
+                ret.end = it + 1;
                 break;
             } else {
                 ret.valid = false;
                 cout << "Error: unexpected closing bracket" << endl;
-                return ret;
+                goto endf;
             }
-        } else if(tok->value == "{"){
-            CodeBlockOption result = parseCodeBlock(tokens, ret.codeblock.vars, tok + 1);
+        // parse a scope
+        } else if(it->value == "{"){
+            ScopeInfo si;
+            si.return_type = vars.returnType;
+            si.parent = &vars;
+            CodeBlockOption result = parseCodeBlock(it + 1, si);
             if(!result.valid){
                 ret.valid = false;
-                return ret;
+                goto endf;
             } 
             Line x = {result.codeblock};
             ret.codeblock.lines.push_back(x);
-            tok = result.end;
+            it = result.end;
+            // check return
+            if(result.codeblock.vars.hasReturn == true){
+                ret.codeblock.vars.hasReturn = true;
+            }
+            // do memory stuff
+            for(const auto& entry : result.codeblock.vars.table){
+                const VarInfo& vi = entry.second;
+                // variables that come from child scope
+                if(vi.decl == -1){
+                    // if variable was defined in this scope
+                    if(vi.def != INT_MAX && vi.def != -1){
+                        int result = vars.assign(entry.first, line, entry.second.type);
+                        if(result != 0){
+                            cout << "DEEP ERROR in parseCodeblock for {}, decl" << endl;
+                            ret.valid = false; goto endf;
+                        }
+                    } 
+                    // variable was destroyed in this scope, it 
+                    // is destroyed in parent scope
+                    if(vi.dest != INT_MAX && vi.dest != -1){
+                        int result = vars.destroy(entry.first, line);
+                        // error shouldn't be possible, check just in case
+                        if(result != 0){
+                            cout << "DEEP ERROR in parseCodeblock {}, delete" << endl;
+                            ret.valid = false; goto endf;
+                        }
+                    }
+                }
+            }
+            
             continue;
+        // assignment or expression
+        } else if (it->type != KEYWORD){
+            cout << "Parsing basic line: ";
+            printToken(*it);
+            print(line);
+            ParseBasicLine line_result = parseBasicLine(vars, line, it);
+            if(line_result.valid == false){
+                ret.valid = false;
+                cout << "Invalid line" << endl;
+                break;
+            } else if(line_result.empty == false){
+                // push line if not empty
+                // print(ret.codeblock.lines.size());
+                ret.codeblock.lines.push_back(line_result.line);
+            }
+            it = line_result.end;
+
+        // if statement
+        } else if(it->value == "if"){
+            ParseIfOption result = parseIf(vars, line, it);
+            if(result.valid == false){
+                cout << "Error while parsing if statement" << endl;
+                ret.valid = false;
+                break;
+            }
+            ret.codeblock.lines.push_back(result.result);
+            it = result.end;
+        } else if(it->value == "while"){
+            ParseWhileOption result = parseWhile(vars, line, it);
+            if(result.valid == false){
+                print("Error while parsing while loop");
+                ret.valid = false;
+                break;
+            }
+            ret.codeblock.lines.push_back(result.result);
+            it = result.end;
+        } else if(it->value == "decl"){
+            ParseDeclOption result = parseDecl(vars, line, it);
+            ret.codeblock.lines.push_back(result.result);
+            if(result.valid == false){ 
+                cout << "Error in decl statement" << endl;
+                ret.valid = false; goto endf; }
+            it = result.end;
+        } else if(it->value == "delete"){
+            ParseDeleteOption result = parseDelete(vars, line, it);
+            ret.codeblock.lines.push_back(result.result);
+            if(result.valid == false){ 
+                cout << "Error in delete statement" << endl;
+                ret.valid = false; goto endf; }
+            it = result.end;
+        // parse return statement
+        } else if(it->value == "return"){
+            if((it+1)->type == EOL){
+                if(vars.returnType != "none"){
+                    print("Error in return statement - expected type none");
+                    ret.valid = false; goto endf;
+                }
+                ReturnLine line;
+                line.noneReturn = true;
+                ret.codeblock.lines.push_back(line);
+                it = it + 2;
+            } else {
+                ParseSimpleExpr result = parseSimpleExpr(vars, it + 1);
+                if(result.valid == false){ 
+                    cout << "Error in delete statement" << endl;
+                    ret.valid = false; goto endf; }
+                if(result.expr.type != vars.returnType){
+                    print("Error in return statement - type does not match signature");
+                    ret.valid = false; goto endf;
+                }
+                ReturnLine line;
+                line.noneReturn = false;
+                line.expr = result.expr;
+                ret.codeblock.lines.push_back(line);
+                it = result.end + 1;
+            }
+            ret.codeblock.vars.hasReturn = true;
+            
+        } else {
+            cout << "Error in parseCodeBlock - unknown keyword" << endl;
         }
-        // cout << "Parsing line: ";
-        printToken(*tok);
-        // print(line);
-        ParseBasicLine line_result = parseBasicLine(tokens, ret.codeblock.vars, line, tok);
-        if(line_result.valid == false){
-            ret.valid = false;
-            cout << "Invalid line" << endl;
-            break;
-        } else if(line_result.empty == false){
-            // push line if not empty
-            // print(ret.codeblock.lines.size());
-            ret.codeblock.lines.push_back(line_result.line);
-        } 
-        if(line_result.end->value == "}"){
-            ret.end = line_result.end + 1;
-            break;
-        }
-        // update loop variables
-        tok = line_result.end + 1;
+    }
+    endf:
+    if(ret.valid == false){
+        printErrorLine(it);
     }
     return ret;
+}
+
+void printErrorLine(Iter it){
+    cout << "Error occured on line " << (*it).line << ":" << endl;
+    cout << endl;
+    while(it->type != EOL && it->type != END){
+        cout << (*it).value << ' ';
+        it = it + 1;
+    }
+    cout << endl;
 }
 
 struct ParseFunction {
@@ -635,8 +1157,9 @@ struct ParseFunction {
     Iter end;
 };
 
-ParseFunction parseFunction(const vector<Token>& tokens, Iter start){
-    // int errorcode;
+// end is the '{' of the function
+ParseFunction parseFunctionSignature(Iter start){
+    
     ParseFunction ret;
     ret.valid = true;
     Iter index = start;
@@ -661,7 +1184,7 @@ ParseFunction parseFunction(const vector<Token>& tokens, Iter start){
             ret.result.param_types.push_back(index->value);
             ret.result.param_names.push_back((index + 1)->value);
         }
-        if((index + 2)->type == DELIMITOR){
+        if((index + 2)->type == COMMA){
             index += 3;
         } else if((index + 2)->value == ")"){
             index = index + 2;
@@ -673,31 +1196,48 @@ ParseFunction parseFunction(const vector<Token>& tokens, Iter start){
     }
     index++;
     if(index->value != "->"){
-        cout << "Invalid function declaration (5)" << endl; 
-        ret.valid = false; return ret;
-    } 
-    index++;
-    // modify for tuples/variants later
-    if(index->type != NAME){
-        cout << "Invalid function declaration (6)" << endl; 
-        ret.valid = false; return ret;
-    } 
-    ret.result.return_type = index->value;
-    index++;
-    if(index->value == "{"){
+        ret.result.return_type = "none";
+    } else {
         index++;
+        // modify for tuples/variants later
+        if(index->type != NAME){
+            cout << "Invalid function declaration (6)" << endl; 
+            ret.valid = false; return ret;
+        } 
+        ret.result.return_type = index->value;
+        index++;
+    }
+    if(index->value == "{"){
     } else if(index->value == "\n" && (index + 1)->value == "}"){
-        index += 2;
+        index += 1;
     } else {
         cout << "Invalid function declaration (7)" << endl; 
         ret.valid = false; return ret;
     }
-    
-    // parse the code block 
+    ret.result.code_start = index + 1;
+    ret.end = index;
+    return ret;
+}
+
+ParseFunction parseFunctionBody(Iter start, Function f){
+    ParseFunction ret;
+    ret.valid = true;
+    ret.result = f;
+
+    // insert the arguements of the function into the symbol table
     SymbolTable vars{};
-    CodeBlockOption result = parseCodeBlock(tokens, vars, index);
+
+    ScopeInfo si;
+    si.return_type = f.return_type;
+    si.param_names = f.param_names;
+    si.param_types = f.param_types;
+    si.parent = nullptr;
+    
+    CodeBlockOption result = parseCodeBlock(start, si);
     if(!result.valid){
-        ret.valid = false; return ret;
+        ret.valid = false; 
+    } else if(result.codeblock.vars.hasReturn == false && ret.result.return_type != "none"){
+        print("Error, function", ret.result.name, "missing return");
     } else {
         ret.result.code = result.codeblock;
         cout << result.codeblock.vars.table.size() << endl;
@@ -706,49 +1246,198 @@ ParseFunction parseFunction(const vector<Token>& tokens, Iter start){
     return ret;
 }
 
+struct EndOfBlock {
+    Iter end;
+    bool valid;
+};
+
+// end of block is the token after closing bracket
+EndOfBlock endOfBlock(Iter start, const string& entity_name){
+    EndOfBlock ret;
+    ret.valid = true;
+    stack<char> brackets;
+    Iter it = start;
+    if(it->type != OPEN_BRACKET){
+        print("Deep error - expected open bracket in endOfBlock");
+        ret.valid = false; return ret;
+    } 
+    brackets.push(it->value[0]);
+    it++;
+    
+    while(!brackets.empty()){
+        if(it->type == OPEN_BRACKET){
+            brackets.push(it->value[0]);
+        } else if(it->type == CLOSED_BRACKET){
+            if(get_closing_bracket(brackets.top()) == it->value[0]){
+                brackets.pop();
+            } else {
+                print("Error in", entity_name, ", bracket mismatch on line", it->line);
+                print("Opening bracket:", brackets.top(), "Closing bracket:", it->value);
+                ret.valid = false; return ret;
+            }
+        } else if(it->type == END){
+            print("Error in", entity_name, ", missing closing bracket", 
+                get_closing_bracket(brackets.top()));
+            ret.valid = false; return ret;
+        }
+        it++;
+    }
+    ret.end = it;
+    ret.valid = true;
+    return ret;
+}
 
 struct ParseProgram {
     bool valid;
     Program result;
 };
 
+
+// void parseStruct(const Entity_start& obj){
+//     Iter it = obj.start;
+//     StructInfo ret;
+//     while(true){
+//         if(it->type == EOL){
+//             it++;
+//             continue;
+//         } else if(it->type == NAME){
+//             Option<Entity> opt = entity_table.get(it->value);
+//             if(opt.valid = false){
+//                 print("Unrecognized type", it->value, "in struct", obj.name);
+//             }
+//             Entity& obj = opt.result;
+//             if(obj == PRIMITIVE_TYPE){
+//             }
+//         } else {
+//             print("Error while parsing struct", obj.name);
+//             // TODO: return value
+//         }
+//         const string& type = (it->value);
+//         if(type_table.contains(type)){         
+//         }
+//     }
+// }
+
+// step 1 - parse a struct
+// any unfamiliar types, flag as unfamiliar
+// Option<vector<string>> parseStructs(vector<Entity_start> list){
+//     Option<vector<string>> ret;
+//     ret.valid = true;
+
+//     for(const Entity_start& entity : list){
+//         Option<structInfo> opt = parseStruct(entity.start);
+//         if(opt.valid == false){
+//             ret.valid = false; return false;
+//         }
+//     }
+// }
+
+struct Entity_start {
+    string name;
+    Iter start;
+};
+
 // top level parsing function
-ParseProgram parseProgram(const vector<Token>& tokens, Iter start){
-    func_table = make_ft();
+ParseProgram parseProgram(Iter start){
     // func_table.printAll();
+    bool foundMainFunction = false;
     ParseProgram ret;
     ret.valid = true;
-    bool foundMainFunction;
+    vector<Entity_start> struct_list;
+    // vector<Entity_start> enum_list;
+
     for(Iter i = start; i != tokens.end(); i++){
         Token t = *i;
-        if(t.type == EOL){ continue; }
-        else if(t.value == "func"){
-            ParseFunction result = parseFunction(tokens, i + 1);
+        if(t.type == EOL){ 
+            continue; 
+        } else if(t.value == "func"){
+            ParseFunction result = parseFunctionSignature(i + 1);
             if(result.valid == false){
-                cout << "Parsing error in function " << (i + 1)->value << endl;
-                ret.valid = false;
-                return ret;
+                print("Parsing error in function", (i + 1)->value);
+                ret.valid = false; return ret;
             }
             if(result.result.name == "main"){
-                if(foundMainFunction == true){
-                    cout << "Main function already defined" << endl;
+                if(foundMainFunction){
+                    print("Error - main function defined multiple times");
                     ret.valid = false; return ret;
-                } else { foundMainFunction == true; }
+                }
+                if(!(result.result.param_names.size() == 0 && result.result.return_type == "none")){
+                    print("Error - main function signature must have no parameters and return none");
+                    ret.valid = false; return ret;
+                }
+                foundMainFunction = true;
                 ret.result.main = result.result;
             } else {
+                // check if function already defined
                 if(ret.result.functions.count(result.result.name) != 0){
                     cout << "Function defined twice: " << result.result.name << endl;
                     ret.valid = false; return ret;
                 }
-                ret.result.functions.insert({result.result.name, result.result});
+                // add signature to function table
+                Function &f = result.result;
+                ret.result.functions.insert({f.name, f});
+                func_table.add(Signature{f.name, f.param_types, f.return_type}, '$' + f.name);
+                // add function to entity table
+                bool success = entity_table.add(f.name, FUNCTION);
+                if(!success){
+                    Entity x = entity_table.get(f.name);
+                    if(x != FUNCTION){
+                        print("Error, function", f.name, "has same name as", toString(x), f.name);
+                    }
+                }
             }
-            i = result.end; // move up the iterator
+            // verify that the brackets are correct
+            string entity_name = "function " + result.result.name;
+            EndOfBlock result2 = endOfBlock(result.end, entity_name); 
+            if(result2.valid == false){
+                print("Bracket mismatch in", entity_name);
+                ret.valid = false; return ret;
+            }
+            i = result2.end; // move up the iterator
+        
+        // initial parsing for structs
+        } else if(t.value == "struct"){
+            if((i+1)->type != NAME && (i+2)->value != "{"){
+                print("Invalid struct declaration on line", i->line);
+                ret.valid = false; return ret;
+            }
+            bool valid = entity_table.add((i+1)->value, STRUCT);
+            if(valid == false){
+                Entity z = entity_table.get((i+1)->value);
+                print("Error while parsing struct", (i+2)->value, ", name is defined twice");
+                ret.valid = false; return ret;
+            }
+            // name of struct, iterator to beginning of block
+            struct_list.push_back({(i+1)->value, i+3});
         } else if(t.type == END){
             break;
         } else {
-            cout << "Invalid token found" << endl;
+            print("Invalid token found");
             ret.valid = false; return ret;
         }
     }
+    // finish parsing structs, enums, global scope, etc
+    // parseStructs(struct_list);
+
+
+    // complete parsing of functions
+    // start with main
+    ParseFunction result = parseFunctionBody(ret.result.main.code_start, ret.result.main);
+    if(!result.valid){
+        print("Error while parsing main function");
+        ret.valid = false; return ret;
+    } 
+    ret.result.main.code = result.result.code;
+    // parse the rest of the functions
+    for(auto& pair : ret.result.functions){
+        ParseFunction result = parseFunctionBody(pair.second.code_start, pair.second);
+        if(!result.valid){
+            print("Error while parsing function", pair.second.name);
+            ret.valid = false; return ret;
+        } 
+        pair.second.code = result.result.code;
+    }
+    
+    ret.valid = true;
     return ret;
 }

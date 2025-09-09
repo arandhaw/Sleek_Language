@@ -4,6 +4,8 @@
 #include <cctype>
 #include <vector>
 #include <string>
+#include <unordered_set>
+// #include <unordered_set>
 // #include <cstring>
 using namespace std;
 
@@ -11,55 +13,58 @@ namespace lexer_globals {
 
     //from highest to lowest precedence
     //brackets + func calls, unary, binary, comparison, logical
-    //BEDMAS
 
-    std::string operators = "+-*/=!|@<>%";
-    std::string open_brackets = "[{(";
-    std::string closed_brackets = "]})";
-    //symbolic operators
-    std::vector<std::string> allowed_operators = {"+", "-", "*", "/", "^", "%", "&", "<", ">", "|", "!", 
-                                                "++", "--", "**", "//", "==", "->", 
-                                            "=", ">=", "<=", "!=", "+=", "-=", "*=", "/="};
-    //cannot appear in an expression
-    std::vector<std::string> unary_operators = {"!", "&"};
-    std::vector<std::string> assignment = {"=", "+=", "-=", "*=", "/=", "++", "--"};
-    //operators that might be unary or binary
-    std::vector<std::string> ambiguous_operators = {"+", "-"};
-    //operators that are words
-    std::vector<std::string> operator_words = {"and", "or"};
-    //possible keywords
-    std::vector<std::string> keywords = {"fn", "return", "decl",
-                    "if", "elif", "else", "match", "while", "for", "loop"};
+    const std::unordered_set<char> operators = {'+', '-', '*', '/', '^', '%', '&', '<', '>', '|', '!', ':', '=', '@', '?'};
+    const std::unordered_set<std::string> operator_words = {"and", "or"};
+    const std::unordered_set<std::string> allowed_operators = 
+        {"+", "-", "*", "/", "^", "%", "&", "<", ">", ">=", "<=",  
+        "|", "!", "++", "--", "**", "//", "==", "->", "::", 
+        "=", "!=", "+=", "-=", "*=", "/=", "@"};
 
+        
+    const std::unordered_set<std::string> unary_operators = {"!", "&"};
+    const std::unordered_set<std::string> ambiguous_operators = {"+", "-"};
+    
+    const std::unordered_set<std::string> assignment = {"=", "+=", "-=", "*=", "/=", "++", "--"};
+    const std::unordered_set<std::string> keywords = {"fn", "return", "decl", "delete",
+                    "if", "elif", "else", "while", "do", "match", "struct", "for", "loop"};
 
-    std::string whitespace = " \r\t";
-    std::string escape_sequences = "\"\\'abfnrtv";  // valid C escape sequences
-    // bool isAscii(char symbol){
-    //     return (unsigned char) symbol > 127;
-    // }
+    //brackets
+    const std::unordered_set<char> open_brackets = {'[', '{', '('};
+    const std::unordered_set<char> closed_brackets = {']', ')', '}'};
+    
+    const std::unordered_set<char> whitespace = {' ', '\r', '\t'};
+    const std::unordered_set<char> escape_sequences = {'"', '\\', '\'', 'a', 'b', 'f', 'n', 'r', 't', 'v'};  
 
 }
 
 // public functions
 
 //true if symbol is within options
-bool oneOf(char symbol, string options){
-    for(auto& i : options){
-        if( i == symbol ){
-            return true;
-        }
-    }
-    return false;
-}
+// bool oneOf(char symbol, string options){
+//     for(auto& i : options){
+//         if( i == symbol ){
+//             return true;
+//         }
+//     }
+//     return false;
+// }
 
-bool oneOf(string str, vector<string> options){
-    for(auto& i : options){
-        if( i == str ){
-            return true;
-        }
-    }
+// bool oneOf(string str, vector<string> options){
+//     for(auto& i : options){
+//         if( i == str ){
+//             return true;
+//         }
+//     }
     
-    return false;
+//     return false;
+// }
+
+bool oneOf(char c, unordered_set<char> options){
+    return options.count(c);
+}
+bool oneOf(string str, unordered_set<string> options){
+    return options.count(str);
 }
 
 enum tokenType{
@@ -67,17 +72,19 @@ enum tokenType{
     OPEN_BRACKET,       //{}, [], ()
     CLOSED_BRACKET,
     KEYWORD,        //name that matches a specific value
-    DELIMITOR,      //, or ,\n 
+    COMMA,      //, or ,\n 
     NAME,           //_ or L -> alphanumeric
     UOP,
     BOP,        //symbol or two symbols
-    ASSIGNMENT,     // assignment operator
+    ASSIGNMENT,     // assignment operator (none | int)
     END,            // End of file
     INT_LITERAL,        
     FLOAT_LITERAL,         //contains decimal or scientific notation
     CHAR_LITERAL,       // single quotes ''
     BOOL_LITERAL,       // true or false
     STRING_LITERAL,         //starts with <modifier>"
+    SLICE_LITERAL,          // two or three numbers
+    UNDERLINE,
 };
 
 string getType(tokenType val){
@@ -91,7 +98,7 @@ string getType(tokenType val){
         break;
         case 3: ret = "KEYWORD";
         break;
-        case 4: ret = "DELIMITOR";
+        case 4: ret = "COMMA";
         break;
         case 5: ret = "NAME";
         break;
@@ -112,6 +119,10 @@ string getType(tokenType val){
         case 13: ret = "BOOL";
         break;
         case 14: ret = "STRING";
+        break;
+        case 15: ret = "SLICE";
+        break;
+        case 16: ret = "UNDERLINE";
         break;
         default: ret = "INVALID";
         break;
@@ -224,7 +235,6 @@ namespace lexer_internals {
         return token;
     }
 
-
     struct CommentOption {
         int number_of_lines;
         int length;
@@ -316,7 +326,7 @@ void printToken(Token token){
 }
 
 // main lexing function
-LexerOutput lexer(std::string input_string){
+LexerOutput lexer(std::string& input_string){
     input_string += "          ";   // whitespace buffer
     using namespace lexer_globals;
     using namespace lexer_internals;
@@ -338,9 +348,14 @@ LexerOutput lexer(std::string input_string){
         // token.type, token.value, token.length
         // must update line on every newline
         // must specify skip : number of characters to move forward
+
+        // completely ignore space, \t, \r 
         if(oneOf(c, whitespace)){ 
             continue; 
-        } else if(c == '\\'){
+        } 
+        // if character is a backslash followed by whitespace then a newline,
+        // it joins two lines together
+        else if(c == '\\'){
             i++;
             while(i < input_string.size()){
                 c = input_string[i];
@@ -351,20 +366,32 @@ LexerOutput lexer(std::string input_string){
                 }
                 i++;
             }
+            line++; col = 1;
             continue;   //skips to after next newline
-        } else if( c == '#'){
+        } 
+        // code comment
+        else if( c == '#'){
             CommentOption result = parseComment(input_string, i);
             line += result.number_of_lines;
             i += result.length - 1;
             continue;
-        } else if(c == ';' || c == '\n'){
+        // newlines and semicolons
+        } else if(c == '\n'){
             token.type = EOL;
             token.length = 1;
             line++;
             col = 0;
+            token.value = "\n";
+        } else if(c == ';'){
+            token.type = EOL;
+            token.length = 1;
+            col = 0;
             token.value = ";";
-        } else if(c == ','){
-            token.type = DELIMITOR;
+        } 
+        // comma
+        // any newlines after the last comma on a line are ignored
+        else if(c == ','){
+            token.type = COMMA;
             token.length = 1;
             while(i + skip != input_string.size()){
                 char d = input_string[i + skip];
@@ -374,16 +401,17 @@ LexerOutput lexer(std::string input_string){
                 }
                 skip++;
             }
-            token.value = input_string.substr(i, token.length);
-        } else if(isdigit(c)){
-            // float or int literal
+            token.value = ',';
+        } 
+        // float or int literal
+        else if(isdigit(c)){
             // lexNumber modifies token
             bool success = lexNumber(input_string, i, token);
             if(!success){ success = false; goto exit; }
             skip = token.length;
-
+        // character literal '
+        // currently only single char and c escape sequence's allowed
         } else if(c == '\''){
-            // character literal - currently only c escape sequence + normal char's allowed
             token.type = CHAR_LITERAL;
             int offset = 0;
             if(input_string[i + 1] == '\''){ 
@@ -406,8 +434,9 @@ LexerOutput lexer(std::string input_string){
                 skip = 3;
                 token.value = input_string.substr(i, 3);
             }
-        } else if(c == '\"'){
-            // string literal - currently only normal chars and c-escape sequences allowed
+        } 
+        // string literal - currently only normal chars and c-escape sequences allowed
+        else if(c == '\"'){
             token.type = STRING_LITERAL;
             int index = i + 1;
             while(true){
@@ -448,6 +477,8 @@ LexerOutput lexer(std::string input_string){
             // handle keywords (if, func, etc.)
             else if(oneOf(token.value, keywords)){
                 token.type = KEYWORD;
+            } else if(token.value == "_"){
+                token.type = UNDERLINE;
             }
         } else if(oneOf(c, operators)){
             // either unary or binary operator
@@ -463,15 +494,36 @@ LexerOutput lexer(std::string input_string){
                 success = false;
                 goto exit;
             }
-        } else if(oneOf(c, open_brackets)){
+        } 
+        // open bracket (, {, [
+        else if(oneOf(c, open_brackets)){
             token.type = OPEN_BRACKET;
             token.length = 1;
-            token.value = input_string.substr(i, token.length);
-        } else if(oneOf(c, closed_brackets)){
+            token.value = c;
+        } 
+        // closed bracket ), ]
+        else if(c == ']' || c == ')'){
             token.type = CLOSED_BRACKET;
             token.length = 1;
-            token.value = input_string.substr(i, token.length);
-        } else {
+            token.value = c;
+        } 
+        // closed bracket }
+        else if(c == '}'){
+            token.type = CLOSED_BRACKET;
+            // to make parsing easier, add EOL if the previous token is not an EOL
+            if(lex.back().type != EOL){
+                Token t2;
+                t2.line = line;
+                t2.column = col;
+                t2.type = EOL;
+                t2.value = ';';
+                lex.push_back(t2);
+            }
+            token.length = 1;
+            token.value = c;
+        }
+        // invalid char
+        else {
             success = false;
             cout << "Error: Non-supported character found: " << input_string[i] << endl; 
             break;

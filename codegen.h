@@ -1,10 +1,13 @@
-#include "parser.cpp"
+#pragma once
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
 #include "utils.cpp"
+
+#include "parser.cpp"
 
 
 class Codegen {
@@ -17,7 +20,12 @@ class Codegen {
 
     void genProgram(const Program& p);
     void genFunction(const Function& program);
+    void declareFunctions(const unordered_map<string, Function>& functions);
+    void genCodeblock(const Codeblock& cb);
     void genMain(const Function& program);
+    void genBasicLine(int line_num, const Basic_Line& line, const SymbolTable& vars);
+    void genExpression(const Expression& e);
+    void genIfBlock(const IfBlock& ifBlock);
 
     Codegen(){}
     // prepare file stream
@@ -40,11 +48,6 @@ class Codegen {
         }
     }
 
-    // write tab to file
-    void tab(){
-        raw(indent_str);
-    }
-
     // increase indent by 1
     void indent(){
         indent_str.push_back(' ');
@@ -60,18 +63,50 @@ class Codegen {
             indent_str.pop_back();
         }
     }
-    // write newline to file
-    void out(){
-        file_stream << "\n";
+
+    // write tab to file
+    void tab(){
+        raw(indent_str);
     }
-    // write arguements to file, separated by space, end with newline
+
+    // print tab, then arguements separated by space
+    template<typename T, typename...A>
+    void tout(const T& first, const A&...args) {
+        tab();
+        file_stream << first;
+        ((file_stream << " ", file_stream << args), ...);
+    }
+
+    // print arguement
     template<typename T, typename...A>
     void out(const T& first, const A&...args) {
+        file_stream << first;
+        ((file_stream << " ", file_stream << args), ...);
+    }
+
+    // write arguements, separated by space, end with newline
+    template<typename T, typename...A>
+    void nout(const T& first, const A&...args) {
+        file_stream << first;
+        ((file_stream << " ", file_stream << args), ...);
+    }
+
+
+    // print tab, then arguements separated by space
+    template<typename T, typename...A>
+    void line(const T& first, const A&...args) {
+        tab();
         file_stream << first;
         ((file_stream << " ", file_stream << args), ...);
         file_stream << "\n";
     }
 
+    // print arguement
+    template<typename T, typename...A>
+    void raw(const T& first, const A&...args) {
+        file_stream << first;
+        ((file_stream << args), ...);
+    }
     //print each arguement (except first two)
     //@sep is printed between each arguement
     //@end is printed at the end
@@ -80,13 +115,6 @@ class Codegen {
         file_stream << first;
         ((file_stream << sep, file_stream << args), ...);
         file_stream << end;
-    }
-
-    // print each arguement
-    // no spaces/newline added in
-    template<typename...A>
-    void raw(const A&...args) {
-        ((file_stream << args), ...);
     }
 };
 

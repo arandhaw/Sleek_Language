@@ -1,11 +1,102 @@
 #pragma once
+
 #include <iostream>
 #include <ostream>
 #include <vector>
 #include <map>
 #include <unordered_map>
+#include <string>
+#include <array>
 
-class None {};
+using namespace std;
+
+// template<typename T, size_t...dims>
+// class $array {
+//     private:
+//         size_t size;
+//         std::array<size_t, sizeof...(dims)> shape;
+//         std::array<T, (dims * ...)> value;
+
+//         void assign_shape(size_t& i, size_t dim){
+//             shape[i] = dim;
+//             index++;
+//         }
+        
+//         size_t generate_index(size_t& i, size_t& x, size_t& index){
+//             x = x / shape[i];
+//             size_t ret = index * x;
+//             i++;
+//             return ret;
+//         }
+
+//     public:
+//         $array(T value){
+//             size_t i = 0;
+//             (assign_shape(i, dims), ...);
+//             size = (dims * ...);
+//             //size = 1;
+//             //bool larger_than_limit = (__builtin_mul_overflow(size, dims, &size) && ...)
+//         };
+//         T get(size_t... indexes){
+//             int x = size;
+//             int i = 0;
+//             size_t index = (generate_index(i, x, indexes) + ...);
+//             return value.at(index);
+//         }
+// };
+
+// class None {};
+// struct str {
+//     const char *x;
+//     size_t length;
+// }
+
+// string x;
+// class gstring {
+//     private:
+//         char x; 
+//         union {
+//             str string_literal;
+//             char small_string[23];
+            
+//         }
+//     public:
+//     gstring(string x)
+//     gstring(const char *){
+
+//     }
+//     gstring copy(){
+
+//     }
+// };
+
+template<typename T>
+class Box {
+    private:
+        T *data;
+    public:
+        // constructor
+        Box(const T& data){
+            data = new T(data);
+        }
+        // copy constructor 
+        Box(const Box& other){
+            data = new T(*other.data);
+        }
+        // move constructor
+        Box(Box&& other) noexcept {
+            data = other.data;
+            other.data = nullptr;
+        }
+        // dereference operator
+        T operator*() {
+            return *data;
+        }
+        // destructor
+        ~Box(){
+            delete data;
+        }
+};
 
 
 template<typename T, typename U>

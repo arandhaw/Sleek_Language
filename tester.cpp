@@ -7,20 +7,26 @@ using namespace std;
 #include <csignal>
 #include <cstdlib>
 
-void signalHandler(int signal) {
-    if (signal == SIGSEGV) {
-        std::cerr << "Error: Segmentation fault (SIGSEGV) occurred!" << std::endl;
-        exit(1);  // Exit the program with a non-zero status
-    }
-}
+// void signalHandler(int signal) {
+//     std::cerr << "Error: Segmentation fault (SIGSEGV) occurred!" << endl;
+//     exit(1);  // Exit the program with a non-zero status
+// }
+// signal(SIGSEGV, signalHandler);
+
+// int recurse_infinite(size_t x){
+//     size_t y = x + 1;
+//     if(x == SIZE_MAX){
+//         return y;
+//     } else {
+//         return recurse_infinite(x + 1);
+//     }
+// }
+
+#include <array>
 
 int main() {
-    // Register the signal handler
-    signal(SIGSEGV, signalHandler);
-
-    // Code that causes a segmentation fault (e.g., dereferencing a null pointer)
-    int* ptr = nullptr;
-    std::cout << *ptr << std::endl;  // This will cause a segmentation fault
+    // Write C++ code here
+    Box<string>("hello my friend");
 
     return 0;
 }

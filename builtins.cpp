@@ -6,7 +6,7 @@
 #include "ast.cpp"
 // features not in C: operator overloading, namespaces, private/public, references, templates
 
-struct $none {};
+struct $none{};
 
 struct $int {
     const static int MAX = 2147483647;
@@ -33,32 +33,38 @@ struct $char {
 // basic operators:
 // 
 // print declarations
-void print($none var){
+$none $print($none var){
     printf("none");
+    return $none{};
 }
 
-void print($int var){
+$none $print($int var){
     printf("%d", var.v);
+    return $none{};
 }
 
-void print($float var){
+$none $print($float var){
     printf("%lf", var.v);
+    return $none{};
 }
 
-void print($byte var){
+$none $print($byte var){
     printf("%d", var.v);
+    return $none{};
 }
 
-void print($char var){
+$none $print($char var){
     printf("%c", var.v);
+    return $none{};
 }
 
-void print($bool var){
+$none $print($bool var){
     if(var.v == true){
         printf("true");
     } else {
         printf("false");
     }
+    return $none{};
 }
 
 $int add($int x, $int y){
@@ -175,7 +181,124 @@ $int mod($int x, $int y){
     return $int{x.v % y.v};
 }
 
-// already exists in cmath
+$int increment($int x){
+    return $int{x.v + 1};
+}
+
+$int decrement($int x){
+    return $int{x.v - 1};
+}
+
+// and operator
+$bool logic_and($bool x, $bool y){
+    return $bool{x.v && y.v};
+}
+
+// or operator
+$bool logic_or($bool x, $bool y){
+    return $bool{x.v || y.v};
+}
+
+// not operator
+$bool logic_not($bool x, $bool y){
+    return $bool{!x.v};
+}
+
+// == operator
+// no equals operator for float
+$bool equals($int x, $int y){
+    return $bool{x.v == y.v};
+}
+
+$bool equals($char x, $char y){
+    return $bool{x.v == y.v};
+}
+
+$bool equals($byte x, $byte y){
+    return $bool{x.v == y.v};
+}
+
+$bool equals($bool x, $bool y){
+    return $bool{x.v == y.v};
+}
+
+// != operator
+// no equals operator for float
+$bool neq($int x, $int y){
+    return $bool{x.v != y.v};
+}
+
+$bool neq($char x, $char y){
+    return $bool{x.v != y.v};
+}
+
+$bool neq($byte x, $byte y){
+    return $bool{x.v != y.v};
+}
+
+$bool neq($bool x, $bool y){
+    return $bool{x.v != y.v};
+}
+
+// >, >=, <, <=
+
+$bool gt($int x, $int y){
+    return $bool{x.v > y.v};
+}
+
+$bool gt($float x, $float y){
+    return $bool{x.v > y.v};
+}
+
+$bool gt($byte x, $byte y){
+    return $bool{x.v > y.v};
+}
+
+$bool geq($int x, $int y){
+    return $bool{x.v >= y.v};
+}
+
+$bool geq($float x, $float y){
+    return $bool{x.v >= y.v};
+}
+
+$bool geq($byte x, $byte y){
+    return $bool{x.v >= y.v};
+}
+
+$bool lt($int x, $int y){
+    return $bool{x.v < y.v};
+}
+
+$bool lt($float x, $float y){
+    return $bool{x.v < y.v};
+}
+
+$bool lt($byte x, $byte y){
+    return $bool{x.v < y.v};
+}
+
+$bool leq($int x, $int y){
+    return $bool{x.v <= y.v};
+}
+
+$bool leq($float x, $float y){
+    return $bool{x.v <= y.v};
+}
+
+$bool leq($byte x, $byte y){
+    return $bool{x.v <= y.v};
+}
+
+
+// unary minus
+$int unary_minus($int x){
+    return $int{-x.v};
+}
+
+$float unary_minus($float x){
+    return $float{-x.v};
+}
 
 // int main(){
 

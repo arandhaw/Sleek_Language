@@ -1,3 +1,5 @@
+#pragma once
+
 #define HAS holds_alternative
 
 #include <vector>
@@ -6,10 +8,13 @@
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
 
 #include "lexer.cpp"
 #include "utils.cpp"
-#include "symboltable.h"
+
+// include the other file
+#include "ast_symboltable.cpp"
 
 using namespace std;
 // ast for line : assignment, multiassignment, 
@@ -18,14 +23,9 @@ using namespace std;
 // iterator for Tokens
 using Iter = vector<Token>::iterator;
 
-// encapsulation of a token iterator
-// .val() - return string value
-// struct Tokref {
-//     Iter token;
-//     string val(){
-//         return token->value;
-//     }
+// struct Generic_type {    
 // };
+
 struct Expression;
 
 struct Literal {
@@ -74,6 +74,7 @@ using Expr_value = variant<Literal, Unary_expr, Binary_expr, Variable, Function_
 struct Expression {
     string type;
     Expr_value expr;
+    bool assignable;
     Expression(void){};
     Expression(Expr_value expr, string type) : type(type), expr(expr){};
 };
@@ -93,14 +94,32 @@ struct Multi_Assignment {
 };
 
 // Line, Codeblock, Function and Program definitions
+
 struct Codeblock;
+struct IfBlock;
+struct WhileBlock;
+struct DeclVars;
+struct DeleteVars; 
+struct ReturnLine;
 using Basic_Line = variant<Expression, Assignment, Multi_Assignment, Empty>;
-using Line = variant<Basic_Line, Codeblock>;
-// using Codeblock = vector<Line>;
+using Line = variant<Basic_Line, Codeblock, IfBlock, WhileBlock, 
+            DeclVars, DeleteVars, ReturnLine>;
+// class declarations
+class SymbolTable;
+class EntityTable;
+struct StructInfo;
+
 
 struct Codeblock {
     SymbolTable vars;
     vector<Line> lines;
+};
+
+struct ScopeInfo {
+    string return_type;
+    vector<string> param_names;
+    vector<string> param_types;
+    SymbolTable* parent;
 };
 
 struct Function {
@@ -109,6 +128,7 @@ struct Function {
     vector<string> param_names;
     vector<string> param_types;
     Codeblock code;
+    Iter code_start; // start of codeblock
 };
 
 struct Signature {
@@ -118,39 +138,69 @@ struct Signature {
     vector<string> param_types;
     Signature(){}
     Signature(string name, vector<string> param_types, string return_type):
-        name(name), param_types(param_types), return_type(return_type)
-    {}
+        name(name), param_types(param_types), return_type(return_type){}
 };
 
 struct Program {
     Function main;
     unordered_map<string, Function> functions;
+    // EntityTable entity_table;
+    // unordered_map<string, StructInfo> struct_table;
 };
 
-// struct If_block {
-//     vector<Expression> condition;
-//     vector<CodeBlock> code;
-// };
+struct IfBlock {
+    bool hasElse;
+    vector<Expression> conditions;
+    vector<Codeblock> branches;
+};
+
+struct WhileBlock {
+    Expression condition;
+    Codeblock cb;
+};
+
+struct DeclVars {
+    vector<Token> variables;
+};
+
+struct DeleteVars {
+    vector<Token> variables;
+};
+
+struct ReturnLine {
+    bool noneReturn;
+    Expression expr;
+};
 
 
-/////////////////////////////////////////////////
-
+/////////// Function_table
 class Function_table {
     private:
-        unordered_multimap<string, Signature> table;
+        struct Func_Data {
+            Signature signature;
+            string cname;
+            // Func_Data(){};
+        };
+        unordered_multimap<string, Func_Data> table;
     public:
     
     // add to function table
     // return false if a duplicate signature exists
+    // the cname is the name of the corresponding c function
+    // if no name is provided, it will be automatically generated with $NAME
     bool add(Signature f);
+    bool add(Signature f, const string& cname);
     // return type of function
-    Option<string> rtype(string name, vector<string> params);
+    Option<string> rtype(const string& name, const vector<string>& params);
 
     // search the table using the name and parameters
-    Option<Signature> search(string name, vector<string> params);
+    Option<Signature> search(const string& name, const vector<string>& params);
+    // obtain the cname "codegen name" of the function
+    // precondition: the function exists
+    string cname(const string& name, const vector<Expression>& args);
     // return number of function with said name
-    int check(string name);
-
-    void printAll();
+    int check(const string& name);
     
+    void printAll();
 };
+

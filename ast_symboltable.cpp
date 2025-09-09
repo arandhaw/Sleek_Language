@@ -1,3 +1,6 @@
+#pragma once
+
+#include "ast_symboltable.h"
 // TypeTable - all types in current module
 // holds types as unordered map: str -> type_info object
 // operations: add, check, info
@@ -56,121 +59,6 @@
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// function table
-
-// add to function table
-// return false if a duplicate signature exists
-bool Function_table::add(Signature f){
-    if(f.return_type == ""){
-        f.return_type = "none";
-    }
-    Option<Signature> duplicate = search(f.name, f.param_types);
-    if(duplicate.valid == true){
-        print("Error in functiontable.add", f.name, f.param_types);
-        return false;
-    }
-    table.insert({f.name, f});
-    return true;
-}
-// return type of function
-Option<string> Function_table::rtype(string name, vector<string> params){
-    Option<Signature> res = search(name, params);
-    Option<string> ret(true);
-    if(res.valid == false){ ret.valid = false; return ret; }
-    else {
-        ret.result = res.result.return_type;
-        return ret;
-    }
-}
-
-// search the table using the name and parameters
-Option<Signature> Function_table::search(string name, vector<string> params){
-    Option<Signature> result(false);
-    auto it = table.equal_range( name );
-    for(auto i = it.first; i != it.second; ++i){
-        vector<string> i_params = i->second.param_types;
-        if(params.size() != i_params.size()){
-            continue;
-        }
-        // compare each parameter type
-        bool equal = true;
-        for(int i = 0; i < params.size(); i++){
-            if(params[i] != i_params[i]){
-                equal = false;
-                break;
-            }
-        }
-        if(equal){
-            result.result = i->second;
-            result.valid = true;
-            break;
-        }
-    }
-    return result;
-}
-// return number of function with said name
-int Function_table::check(string name){
-    return table.count(name);
-}
-
-void Function_table::printAll(){
-    cout << "Function table:" << endl;
-    for(pair<string, Signature> i : table){
-        cout << i.second.name << "(";
-        for(auto& j : i.second.param_types){
-            cout << j << ", ";
-        }
-        cout << "\b\b) -> " << i.second.return_type << endl;
-    }
-}
-
-// enum Var_state {
-//     LOCAL, 
-//     OUTER
-// };
-
-// struct Var_data {
-//     string type;
-//     size_t line_decl;
-//     size_t line_def;
-//     size_t line_dest;
-// };
-// maps name of variable -> variable data
-// we mainly need to know the type and region of validity
-// a variable can be non-existant, declared, defined, and used
-// existance - exists by the end of assignment operation, or decl
-// declared - exists between decl and an assignment
-// x = increment(x) + multiply_by_2(x)   # assignment order matters now!!! - either throw error or decide rule
-// repeated variables get $# attached to the end
-// struct Symbol_table {
-//     //parent scope
-//     unordered_map<string, Var_data> locals;
-// };
-Function_table make_ft(){
-    // Type_table tt;
-    // tt.add("int", Type_info("int", Supertype::PRIMITIVE));
-    // tt.add("float", Type_info("double", Supertype::PRIMITIVE));
-    // tt.add("bool", Type_info("bool", Supertype::PRIMITIVE));
-    Function_table ft;
-
-    ft.add(Signature{"+", vector<string>{"int", "int"}, "int"});
-    ft.add(Signature{"+", vector<string>{"float", "int"}, "float"});
-    ft.add(Signature{"+", vector<string>{"int", "float"}, "float"});
-    ft.add(Signature{"+", vector<string>{"float", "float"}, "float"});
-    ft.add(Signature{"pound", vector<string>{"int"}, "float"});
-    ft.add(Signature{"round", vector<string>{"float"}, "int"});
-    ft.add(Signature{"rms", vector<string>{"float", "float"}, "float"});
-    ft.add(Signature{"print", vector<string>{"int"}, "none"});
-    ft.add(Signature{"print", vector<string>{"float"}, "none"});
-    ft.add(Signature{"print", vector<string>{"char"}, ""});
-    ft.add(Signature{"print", vector<string>{"bool"}, "none"});
-
-    // cout << ft.rtype("+", vector<string>{"int", "int"}).valid << endl;
-    // cout << ft.rtype("+", vector<string>{"int", "float"}).valid << endl;
-    // cout << ft.rtype("+", vector<string>{"float", "float"}).valid << endl;
-    // cout << ft.rtype("+", vector<string>{"float", "int"}).valid << endl;
-    return ft;
-}
 
 
 VarInfo::VarInfo(){
@@ -292,6 +180,10 @@ bool SymbolTable::declare(string name, int line){
     vi.def = INT_MAX;
     vi.dest = INT_MAX;
     table.insert({name, vi});
+    {
+        VarInfo vi = table[name];
+        print(vi.decl, vi.def, vi.dest);
+    }
     return true;
 }
 
@@ -354,18 +246,32 @@ int SymbolTable::assign(string name, int line, string type){
             print("compiler error - missing var");
             return 4;
     }
+    {
+        VarInfo vi = table[name];
+        print(vi.decl, vi.def, vi.dest);
+    }
     return 0;
 }
 
 // set destruction line
-// returns false if the variable is already destroyed
-bool SymbolTable::destroy(string name, int line){
+// returns 0 if sucessful 
+// return 1 if the variable is already destroyed
+// returns 2 if the variable doesn't exist
+int SymbolTable::destroy(string name, int line){
+    bool exists = search_and_copy(name);
+    if(!exists){
+        return 2;
+    } 
     VarInfo& vi = table[name];
     if(vi.dest != INT_MAX){
-        return false;
+        return 1;
     }
     vi.dest = line;
-    return true;
+    {
+        VarInfo vi = table[name];
+        print(vi.decl, vi.def, vi.dest);
+    }
+    return 0;
 }
 
 

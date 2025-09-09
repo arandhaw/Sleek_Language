@@ -64,6 +64,7 @@
         "set": "cpp",
         "span": "cpp",
         "unordered_set": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "csignal": "cpp"
     }
 }
