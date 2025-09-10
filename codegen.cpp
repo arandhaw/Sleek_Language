@@ -34,25 +34,25 @@ void Codegen::declareFunctions(const unordered_map<string, Function>& functions)
     for(auto& f : functions){
         const Function& func = f.second;
         raw('\n');
-        raw('$', func.return_type, ' ', func.name, '(');
+        raw('$', func.return_type.to_string(), ' ', func.name, '(');
         int num_params = func.param_names.size();
         
         for(int i = 0; i < num_params - 1; i++){
-            raw('$', func.param_types[i], ' ', '$', func.param_names[i], ", ");
+            raw('$', func.param_types[i].to_string(), ' ', '$', func.param_names[i], ", ");
         }
-        raw('$', func.param_types[num_params-1], ' ', '$', func.param_names[num_params-1], ");");
+        raw('$', func.param_types[num_params-1].to_string(), ' ', '$', func.param_names[num_params-1], ");");
         raw('\n');
     }
 }
 
 void Codegen::genFunction(const Function& func){
-    raw('$', func.return_type, ' ', '$' + func.name, '(');
+    raw('$', func.return_type.to_string(), ' ', '$' + func.name, '(');
     int num_params = func.param_names.size();
     
     for(int i = 0; i < num_params - 1; i++){
-        raw('$', func.param_types[i], ' ', func.param_names[i], ", ");
+        raw('$', func.param_types[i].to_string(), ' ', func.param_names[i], ", ");
     }
-    raw('$' + func.param_types[num_params-1], ' ', func.param_names[num_params-1], "){\n");
+    raw('$' + func.param_types[num_params-1].to_string(), ' ', func.param_names[num_params-1], "){\n");
     indent();
     genCodeblock(func.code);
     dindent();
@@ -84,7 +84,7 @@ void Codegen::genCodeblock(const Codeblock& cb){
             DeclVars& x = get<DeclVars>(i); 
             for(Token& tok : x.variables){
                 const string& name = tok.value;
-                const string& type = cb.vars.table.at(name).type;
+                const string& type = cb.vars.table.at(name).type.to_string();
                 raw('$', type, ' ', name, ';', ' ');
             }
             raw("\n");
@@ -146,7 +146,7 @@ void Codegen::genBasicLine(int line_num, const Basic_Line& line, const SymbolTab
             string name = x.name.value;
             const VarInfo& info = vars.table.at(name);
             if(info.decl == line_num){
-                raw('$', info.type, ' ', x.name.value);
+                raw('$', info.type.to_string(), ' ', x.name.value);
             } else {
                 raw(x.name.value);
             }

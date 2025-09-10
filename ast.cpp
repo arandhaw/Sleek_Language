@@ -31,9 +31,6 @@ Array_index::Array_index(Token name) {
 // function table
 
 bool Function_table::add(Signature f){
-    if(f.return_type == ""){
-        f.return_type = "none";
-    }
     Option<Signature> duplicate = search(f.name, f.param_types);
     if(duplicate.valid == true){
         print("Error in functiontable.add", f.name, f.param_types);
@@ -45,9 +42,6 @@ bool Function_table::add(Signature f){
 // add to function table
 // return false if a duplicate signature exists
 bool Function_table::add(Signature f, const string& cname){
-    if(f.return_type == ""){
-        f.return_type = "none";
-    }
     Option<Signature> duplicate = search(f.name, f.param_types);
     if(duplicate.valid == true){
         print("Error in functiontable.add", f.name, f.param_types);
@@ -58,9 +52,9 @@ bool Function_table::add(Signature f, const string& cname){
 }
 
 // return type of function
-Option<string> Function_table::rtype(const string& name, const vector<string>& params){
+Option<Type> Function_table::rtype(const string& name, const vector<Type>& params){
     Option<Signature> res = search(name, params);
-    Option<string> ret(true);
+    Option<Type> ret(true);
     if(res.valid == false){ ret.valid = false; return ret; }
     else {
         ret.result = res.result.return_type;
@@ -69,11 +63,11 @@ Option<string> Function_table::rtype(const string& name, const vector<string>& p
 }
 
 // search the table using the name and parameters
-Option<Signature> Function_table::search(const string& name, const vector<string>& params){
+Option<Signature> Function_table::search(const string& name, const vector<Type>& params){
     Option<Signature> result(false);
     auto it = table.equal_range( name );
     for(auto i = it.first; i != it.second; ++i){
-        vector<string> i_params = i->second.signature.param_types;
+        vector<Type> i_params = i->second.signature.param_types;
         if(params.size() != i_params.size()){
             continue;
         }
@@ -102,7 +96,7 @@ string Function_table::cname(const string& name, const vector<Expression>& args)
     Option<string> result(false);
     auto it = table.equal_range( name );
     for(auto i = it.first; i != it.second; ++i){
-        vector<string> i_params = i->second.signature.param_types;
+        vector<Type> i_params = i->second.signature.param_types;
         if(args.size() != i_params.size()){
             continue;
         }
@@ -131,9 +125,9 @@ void Function_table::printAll(){
     for(pair<string, Func_Data> i : table){
         cout << i.second.signature.name << "(";
         for(auto& j : i.second.signature.param_types){
-            cout << j << ", ";
+            cout << j.to_string() << ", ";
         }
-        cout << "\b\b) -> " << i.second.signature.return_type << endl;
+        cout << "\b\b) -> " << i.second.signature.return_type.to_string() << endl;
     }
 }
 
@@ -171,7 +165,7 @@ void Function_table::printAll(){
 //////////////
 void printExpression(const Expression& e){
     Expr_value expr = e.expr;
-    cout << e.type << " : ";
+    cout << e.type.to_string() << " : ";
     if(holds_alternative<Literal>(expr)){
         cout << get<Literal>(expr).value.value;
     } else if(holds_alternative<Variable>(expr)){
@@ -267,12 +261,12 @@ void printFunction(const Function& f){
     cout << f.name << "(";
     int len = f.param_names.size();
     for(int i = 0; i < len; i++){
-        cout << f.param_types.at(i) << " " << f.param_names.at(i);
+        cout << f.param_types.at(i).to_string() << " " << f.param_names.at(i);
         if(i != len - 1){
             cout << ", ";
         }
     }
-    cout << ") -> " << f.return_type << "\n";
+    print(") ->", f.return_type.to_string());
     printCodeblock(f.code);
 }
 

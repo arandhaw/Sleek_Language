@@ -12,91 +12,95 @@ std::string readFileIntoString(const std::string& filePath) {
     // Read the file content into a string
     return std::string((std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>());
 }
-void make_ft(){
-    // Type_table tt;
-    // tt.add("int", Type_info("int", Supertype::PRIMITIVE));
-    // tt.add("float", Type_info("double", Supertype::PRIMITIVE));
-    // tt.add("bool", Type_info("bool", Supertype::PRIMITIVE));
+void init_function_table(){
     Function_table& ft = func_table;
+    ft.add(Signature{"print", vector<Type>{type_int}, type_none});
+    ft.add(Signature{"print", vector<Type>{type_float}, type_none});
+    ft.add(Signature{"print", vector<Type>{type_char}, type_none});
+    ft.add(Signature{"print", vector<Type>{type_bool}, type_none});
+    ft.add(Signature{"print", vector<Type>{type_none}, type_none});
+    ft.add(Signature{"print", vector<Type>{type_byte}, type_none});
+    ft.add(Signature{"+", vector<Type>{type_int, type_int}, type_int}, "add");
+    ft.add(Signature{"+", vector<Type>{type_float, type_int}, type_float}, "add");
+    ft.add(Signature{"+", vector<Type>{type_int, type_float}, type_float}, "add");
+    ft.add(Signature{"+", vector<Type>{type_float, type_float}, type_float}, "add");
+    ft.add(Signature{"-", vector<Type>{type_int, type_int}, type_int}, "sub");
+    ft.add(Signature{"-", vector<Type>{type_int, type_float}, type_float}, "sub");
+    ft.add(Signature{"-", vector<Type>{type_float, type_int}, type_float}, "sub");
+    ft.add(Signature{"-", vector<Type>{type_float, type_float}, type_float}, "sub");
+
+    ft.add(Signature{"*", vector<Type>{type_int, type_int}, type_int}, "mul");
+    ft.add(Signature{"*", vector<Type>{type_int, type_float}, type_float}, "mul");
+    ft.add(Signature{"*", vector<Type>{type_float, type_int}, type_float}, "mul");
+    ft.add(Signature{"*", vector<Type>{type_float, type_float}, type_float}, "mul");
+
+    ft.add(Signature{"/", vector<Type>{type_int, type_int}, type_float}, "div");
+    ft.add(Signature{"/", vector<Type>{type_int, type_float}, type_float}, "div");
+    ft.add(Signature{"/", vector<Type>{type_float, type_int}, type_float}, "div");
+    ft.add(Signature{"/", vector<Type>{type_float, type_float}, type_float}, "div");
+
+    ft.add(Signature{"//", vector<Type>{type_int, type_int}, type_float}, "idiv");
+    ft.add(Signature{"**", vector<Type>{type_int, type_int}, type_int}, "iexp");
+
+    ft.add(Signature{"^", vector<Type>{type_int, type_int}, type_float}, "exp");
+    ft.add(Signature{"^", vector<Type>{type_int, type_float}, type_float}, "exp");
+    ft.add(Signature{"^", vector<Type>{type_float, type_int}, type_float}, "exp");
+    ft.add(Signature{"^", vector<Type>{type_float, type_float}, type_float}, "exp");
     
-    ft.add(Signature{"print", vector<string>{"int"}, "none"});
-    ft.add(Signature{"print", vector<string>{"float"}, "none"});
-    ft.add(Signature{"print", vector<string>{"char"}, "none"});
-    ft.add(Signature{"print", vector<string>{"bool"}, "none"});
-    ft.add(Signature{"print", vector<string>{"none"}, "none"});
+    ft.add(Signature{"%", vector<Type>{type_int, type_int}, type_int}, "mod");
 
-    ft.add(Signature{"+", vector<string>{"int", "int"}, "int"}, "add");
-    ft.add(Signature{"+", vector<string>{"float", "int"}, "float"}, "add");
-    ft.add(Signature{"+", vector<string>{"int", "float"}, "float"}, "add");
-    ft.add(Signature{"+", vector<string>{"float", "float"}, "float"}, "add");
+    ft.add(Signature{"++", vector<Type>{type_int}, type_int}, "increment");
+    ft.add(Signature{"--", vector<Type>{type_int}, type_int}, "decrement");
 
-    ft.add(Signature{"-", vector<string>{"int", "int"}, "int"}, "sub");
-    ft.add(Signature{"-", vector<string>{"int", "float"}, "float"}, "sub");
-    ft.add(Signature{"-", vector<string>{"float", "int"}, "float"}, "sub");
-    ft.add(Signature{"-", vector<string>{"float", "float"}, "float"}, "sub");
+    ft.add(Signature{"u-", vector<Type>{type_int}, type_int}, "unary_minus");
+    ft.add(Signature{"u-", vector<Type>{type_float}, type_float}, "unary_minus");
 
-    ft.add(Signature{"*", vector<string>{"int", "int"}, "int"}, "mul");
-    ft.add(Signature{"*", vector<string>{"int", "float"}, "float"}, "mul");
-    ft.add(Signature{"*", vector<string>{"float", "int"}, "float"}, "mul");
-    ft.add(Signature{"*", vector<string>{"float", "float"}, "float"}, "mul");
+    ft.add(Signature{"and", vector<Type>{type_bool, type_bool}, type_bool}, "logic_and");
+    ft.add(Signature{"or", vector<Type>{type_bool, type_bool}, type_bool}, "logic_or");
+    ft.add(Signature{"!", vector<Type>{type_bool, type_bool}, type_bool}, "logic_not");
 
-    ft.add(Signature{"/", vector<string>{"int", "int"}, "float"}, "div");
-    ft.add(Signature{"/", vector<string>{"int", "float"}, "float"}, "div");
-    ft.add(Signature{"/", vector<string>{"float", "int"}, "float"}, "div");
-    ft.add(Signature{"/", vector<string>{"float", "float"}, "float"}, "div");
+    ft.add(Signature{"==", vector<Type>{type_bool, type_bool}, type_bool}, "equals");
+    ft.add(Signature{"==", vector<Type>{type_int, type_int}, type_bool}, "equals");
+    ft.add(Signature{"==", vector<Type>{type_char, type_char}, type_bool}, "equals");
+    ft.add(Signature{"==", vector<Type>{type_byte, type_byte}, type_bool}, "equals");
 
-    ft.add(Signature{"//", vector<string>{"int", "int"}, "float"}, "idiv");
-    ft.add(Signature{"**", vector<string>{"int", "int"}, "int"}, "iexp");
+    ft.add(Signature{"!=", vector<Type>{type_bool, type_bool}, type_bool}, "neq");
+    ft.add(Signature{"!=", vector<Type>{type_int, type_int}, type_bool}, "neq");
+    ft.add(Signature{"!=", vector<Type>{type_char, type_char}, type_bool}, "neq");
+    ft.add(Signature{"!=", vector<Type>{type_byte, type_byte}, type_bool}, "neq");
 
-    ft.add(Signature{"^", vector<string>{"int", "int"}, "float"}, "exp");
-    ft.add(Signature{"^", vector<string>{"int", "float"}, "float"}, "exp");
-    ft.add(Signature{"^", vector<string>{"float", "int"}, "float"}, "exp");
-    ft.add(Signature{"^", vector<string>{"float", "float"}, "float"}, "exp");
-    
-    ft.add(Signature{"%", vector<string>{"int", "int"}, "int"}, "mod");
+    ft.add(Signature{">", vector<Type>{type_int, type_int}, type_bool}, "gt");
+    ft.add(Signature{">", vector<Type>{type_byte, type_byte}, type_bool}, "gt");
+    ft.add(Signature{">", vector<Type>{type_float, type_float}, type_bool}, "gt");
 
-    ft.add(Signature{"++", vector<string>{"int"}, "int"}, "increment");
-    ft.add(Signature{"--", vector<string>{"int"}, "int"}, "decrement");
+    ft.add(Signature{">=", vector<Type>{type_int, type_int}, type_bool}, "geq");
+    ft.add(Signature{">=", vector<Type>{type_byte, type_byte}, type_bool}, "geq");
+    ft.add(Signature{">=", vector<Type>{type_float, type_float}, type_bool}, "geq");
 
-    ft.add(Signature{"u-", vector<string>{"int"}, "int"}, "unary_minus");
-    ft.add(Signature{"u-", vector<string>{"float"}, "float"}, "unary_minus");
+    ft.add(Signature{"<", vector<Type>{type_int, type_int}, type_bool}, "lt");
+    ft.add(Signature{"<", vector<Type>{type_byte, type_byte}, type_bool}, "lt");
+    ft.add(Signature{"<", vector<Type>{type_float, type_float}, type_bool}, "lt");
 
-    ft.add(Signature{"and", vector<string>{"bool", "bool"}, "bool"}, "logic_and");
-    ft.add(Signature{"or", vector<string>{"bool", "bool"}, "bool"}, "logic_or");
-    ft.add(Signature{"!", vector<string>{"bool", "bool"}, "bool"}, "logic_not");
+    ft.add(Signature{"<=", vector<Type>{type_int, type_int}, type_bool}, "leq");
+    ft.add(Signature{"<=", vector<Type>{type_byte, type_byte}, type_bool}, "leq");
+    ft.add(Signature{"<=", vector<Type>{type_float, type_float}, type_bool}, "leq");
 
-    ft.add(Signature{"==", vector<string>{"bool", "bool"}, "bool"}, "equals");
-    ft.add(Signature{"==", vector<string>{"int", "int"}, "bool"}, "equals");
-    ft.add(Signature{"==", vector<string>{"char", "char"}, "bool"}, "equals");
-    ft.add(Signature{"==", vector<string>{"byte", "byte"}, "bool"}, "equals");
-
-    ft.add(Signature{"!=", vector<string>{"bool", "bool"}, "bool"}, "neq");
-    ft.add(Signature{"!=", vector<string>{"int", "int"}, "bool"}, "neq");
-    ft.add(Signature{"!=", vector<string>{"char", "char"}, "bool"}, "neq");
-    ft.add(Signature{"!=", vector<string>{"byte", "byte"}, "bool"}, "neq");
-
-    ft.add(Signature{">", vector<string>{"int", "int"}, "bool"}, "gt");
-    ft.add(Signature{">", vector<string>{"byte", "byte"}, "bool"}, "gt");
-    ft.add(Signature{">", vector<string>{"float", "float"}, "bool"}, "gt");
-
-    ft.add(Signature{">=", vector<string>{"int", "int"}, "bool"}, "geq");
-    ft.add(Signature{">=", vector<string>{"byte", "byte"}, "bool"}, "geq");
-    ft.add(Signature{">=", vector<string>{"float", "float"}, "bool"}, "geq");
-
-    ft.add(Signature{"<", vector<string>{"int", "int"}, "bool"}, "lt");
-    ft.add(Signature{"<", vector<string>{"byte", "byte"}, "bool"}, "lt");
-    ft.add(Signature{"<", vector<string>{"float", "float"}, "bool"}, "lt");
-
-    ft.add(Signature{"<=", vector<string>{"int", "int"}, "bool"}, "leq");
-    ft.add(Signature{"<=", vector<string>{"byte", "byte"}, "bool"}, "leq");
-    ft.add(Signature{"<=", vector<string>{"float", "float"}, "bool"}, "leq");
-
-    // cout << ft.rtype("+", vector<string>{"int", "int"}).valid << endl;
-    // cout << ft.rtype("+", vector<string>{"int", "float"}).valid << endl;
-    // cout << ft.rtype("+", vector<string>{"float", "float"}).valid << endl;
-    // cout << ft.rtype("+", vector<string>{"float", "int"}).valid << endl;
+    // cout << ft.rtype("+", vector<Type>{type_int, type_int}).valid << endl;
+    // cout << ft.rtype("+", vector<Type>{type_int, type_float}).valid << endl;
+    // cout << ft.rtype("+", vector<Type>{type_float, type_float}).valid << endl;
+    // cout << ft.rtype("+", vector<Type>{type_float, type_int}).valid << endl;
 }
 
+void init_entity_table(){
+    // list of valid entities - structs, enums, primitive_types
+    entity_table.add("int", PRIMITIVE_TYPE);
+    entity_table.add("float", PRIMITIVE_TYPE);
+    entity_table.add("none", PRIMITIVE_TYPE);
+    entity_table.add("bool", PRIMITIVE_TYPE);
+    entity_table.add("byte", PRIMITIVE_TYPE);
+    entity_table.add("char", PRIMITIVE_TYPE);
+    entity_table.add("print", FUNCTION);
+}
 
 // struct TypeInfo {
 //     string name;
@@ -108,12 +112,12 @@ void make_ft(){
 //     bool destructor;
 // };
 
-Type type_none;
-Type type_int;
-Type type_float;
-Type type_byte;
-Type type_bool;
-Type type_char;
+// Type type_none;
+// Type type_int;
+// Type type_float;
+// Type type_byte;
+// Type type_bool;
+// Type type_char;
 
 void init_type_table(){
     type_none = type_table.insert( TypeInfo{"none", sizeof($none), PRIMITIVE_TYPE, Type_ast{Named_type{}}, true, true, false} );
@@ -122,12 +126,14 @@ void init_type_table(){
     type_byte = type_table.insert( TypeInfo{"byte", sizeof($byte), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, false} );
     type_bool = type_table.insert( TypeInfo{"bool", sizeof($bool), PRIMITIVE_TYPE, Type_ast{Named_type{}}, true, true, false} );
     type_char = type_table.insert( TypeInfo{"char", sizeof($char), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, false} );
+    type_function = type_table.insert( TypeInfo{"Function", 2*sizeof(int*), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, true} );
 }
 
 void startup(){
-    // add builtin functions to function table
-    make_ft();
+    
     init_type_table();
+    init_function_table();
+    init_entity_table();
     // generate precedence map
     int i = 0;
     for(auto x : operator_precedence){
@@ -140,6 +146,7 @@ void startup(){
 
 int main(){
     startup();
+    print("Startup complete");
     string expression = readFileIntoString("program.sleek");
     //string expression = "3 + 4**3 * 4";
     cout << "Starting lexing..." << endl;

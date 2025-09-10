@@ -8,12 +8,36 @@
 
 using namespace std;
 
+// represent types in the program
+// note: type_id is a unique identifier for each type
+// in order to be instantiated, the type_id must be obtained from type table
+// (implicit copy constructor allows you to copy types)
+
+struct Type {
+    size_t type_id; // unique identifier for every concrete type
+    string to_string() const;   // get string from type_table
+
+    // implement == and !=
+    bool operator==(const Type& other) const {
+        return type_id == other.type_id;
+    }
+    bool operator!=(const Type& other) const {
+        return type_id != other.type_id;
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, const Type& obj) {
+    os << obj.to_string();
+    return os;
+}
+
 /////////// Symboltable //////////////////
-struct VarInfo{
+struct VarInfo {
     int decl;
     int def;
     int dest;
-    string type;
+    bool type_defined;
+    Type type;
     VarInfo();
 };
 
@@ -31,10 +55,10 @@ enum Var_status {
 // A variable can be used on the line after it is defined to the line it is destroyed
 class SymbolTable {
     private:
-        //
+        
     public:
         SymbolTable *parent = nullptr;
-        string returnType;
+        Type returnType;
         bool hasReturn = false;
         // should only be read, modifications should be done through functions
         unordered_map<string, VarInfo> table;
@@ -61,11 +85,11 @@ class SymbolTable {
 
         // check if type is usable
         // returns the type if usable
-        Option<string> use_var(string name);
+        Option<Type> use_var(string name);
         
         // get the type of a variable
         // returns false if undeclared/undefined
-        Option<string> getType(string name);
+        Option<Type> getType(string name);
 
         // declare a variable on a line
         // if type is empty string, then its considered unspecified
@@ -75,7 +99,7 @@ class SymbolTable {
         // declare a variable on a line
         // if type is empty string, then its considered unspecified
         // if variable already exists, return false
-        bool declare_with_type(string name, int line, string type);
+        bool declare_with_type(string name, int line, Type type);
 
         // if variable doesn't exist, declare + define
         // if variable is already defined, check type
@@ -83,7 +107,7 @@ class SymbolTable {
         // return 1 if types don't match declared type 
         // return 2 if types don't match defined type
         // return 3 if variable is already destroyed
-        int assign(string name, int line, string type);
+        int assign(string name, int line, Type type);
 
         // set destruction line
         // returns 0 if sucessful 
@@ -165,11 +189,6 @@ struct TypeInfo {
     bool destructor;
 };
 
-struct Type {
-    size_t type_id; // unique identifier for every concrete type
-    string to_string();
-};
-
 // check if 
 class TypeTable {
     private:
@@ -212,7 +231,10 @@ class TypeTable {
 TypeTable type_table;
 
 // methods of type class
-string Type::to_string(){
+string Type::to_string() const {
+    if(!type_table.contains(*this)){
+        return "UNKNOWN-TYPE";
+    }
     return type_table.get_string(*this);
 }
 

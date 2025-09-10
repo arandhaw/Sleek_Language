@@ -129,7 +129,7 @@ Var_status SymbolTable::getStatus(string name){
         return DESTROYED;
     } else if(vi.def != INT_MAX){
         return DEFINED;
-    } else if(vi.type == ""){
+    } else if(vi.type_defined){
         return DECLARED_NO_TYPE;
     } else {
         return DECLARED_W_TYPE;
@@ -145,27 +145,27 @@ bool SymbolTable::is_usable(string name){
 
 // if type is usable, returns the type
 // otherwise returns false
-Option<string> SymbolTable::use_var(string name){
+Option<Type> SymbolTable::use_var(string name){
     if(is_usable(name)){
-        return Option<string>(table[name].type);
+        return Option<Type>(table[name].type);
     } else {
-        return Option<string>(false);
+        return Option<Type>(false);
     }
 }
 
 // get the type of a variable
 // returns false if undeclared/undefined
-Option<string> SymbolTable::getType(string name){
+Option<Type> SymbolTable::getType(string name){
     if(search_and_copy(name)==true){
-        string type = table[name].type;
-        if(type != "")
-            return Option<string>{type};
+        VarInfo& vi = table[name];
+        if(vi.type_defined)
+            return Option<Type>{vi.type};
         else {
-            return Option<string>(false);
+            return Option<Type>(false);
         }
 
     } else {
-        return Option<string>{false};
+        return Option<Type>{false};
     }
 }
 // declare a variable on a line
@@ -179,6 +179,7 @@ bool SymbolTable::declare(string name, int line){
     vi.decl = line;
     vi.def = INT_MAX;
     vi.dest = INT_MAX;
+    vi.type_defined = false;
     table.insert({name, vi});
     {
         VarInfo vi = table[name];
@@ -190,7 +191,7 @@ bool SymbolTable::declare(string name, int line){
 // declare a variable on a line
 // if type is empty string, then its considered unspecified
 // if variable already exists, return false
-bool SymbolTable::declare_with_type(string name, int line, string type){
+bool SymbolTable::declare_with_type(string name, int line, Type type){
     if(table.count(name)==1){
         return false;
     }
@@ -198,6 +199,7 @@ bool SymbolTable::declare_with_type(string name, int line, string type){
     vi.decl = line;
     vi.def = INT_MAX;
     vi.dest = INT_MAX;
+    vi.type_defined = true;
     vi.type = type;
     table.insert({name, vi});
     return true;
@@ -209,7 +211,7 @@ bool SymbolTable::declare_with_type(string name, int line, string type){
 // return 1 if types don't match declared type 
 // return 2 if types don't match defined type
 // return 3 if variable is already destroyed
-int SymbolTable::assign(string name, int line, string type){
+int SymbolTable::assign(string name, int line, Type type){
     bool exists = search_and_copy(name);
     if(!exists){
         VarInfo vi;
@@ -217,6 +219,7 @@ int SymbolTable::assign(string name, int line, string type){
         vi.def = line;
         vi.dest = INT_MAX;
         vi.type = type;
+        vi.type_defined = true;
         table.insert({name, vi});
         return 0;
     } 

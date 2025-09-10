@@ -11,20 +11,21 @@ using namespace std;
 
 namespace lexer_globals {
 
-    //from highest to lowest precedence
-    //brackets + func calls, unary, binary, comparison, logical
 
-    const std::unordered_set<char> operators = {'+', '-', '*', '/', '^', '%', '&', '<', '>', '|', '!', ':', '=', '@', '?'};
+    // characters that operators can start with
+    const std::unordered_set<char> operators = 
+        {'+', '-', '*', '/', '^', '%', '&', '<', '>', '|', '!', ':', '=', '@', '?'};
+    // words that are operators
     const std::unordered_set<std::string> operator_words = {"and", "or"};
+    // the list of allowed operators
     const std::unordered_set<std::string> allowed_operators = 
         {"+", "-", "*", "/", "^", "%", "&", "<", ">", ">=", "<=",  
         "|", "!", "++", "--", "**", "//", "==", "->", "::", 
         "=", "!=", "+=", "-=", "*=", "/=", "@"};
 
-        
     const std::unordered_set<std::string> unary_operators = {"!", "&"};
+    // operators that are unary or binary
     const std::unordered_set<std::string> ambiguous_operators = {"+", "-"};
-    
     const std::unordered_set<std::string> assignment = {"=", "+=", "-=", "*=", "/=", "++", "--"};
     const std::unordered_set<std::string> keywords = {"fn", "return", "decl", "delete",
                     "if", "elif", "else", "while", "do", "match", "struct", "for", "loop"};

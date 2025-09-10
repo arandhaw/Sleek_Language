@@ -23,6 +23,14 @@ const vector<vector<std::string>> operator_precedence =
 {"(", "[", "."}};      // function call, array index and attribute operator
 
 const unordered_set<string> primitive_types = {"int", "float", "char", "bool", "byte", "none"};
+// initialized upon startup
+Type type_none;
+Type type_int;
+Type type_float;
+Type type_byte;
+Type type_bool;
+Type type_char;
+Type type_function;
 
 // globals
 unordered_map<std::string, int> precedence;
@@ -193,36 +201,25 @@ bool shunt(stack<Token>& operations, stack<Expression>& expr, Token token){
             Expression right = expr.top(); expr.pop();
             Expression left = expr.top(); expr.pop();
             // determine type
-            string type = "";
-            if(left.type == "" || right.type == ""){
-                cout << "Type error in expression - type of operand is unknown" << endl;
+            Option<Type> res = func_table.rtype(top.value, vector<Type>{left.type, right.type});
+            if(res.valid == false){ 
+                print("Type error - no operator defined for", left.type, top.value, right.type); 
                 return false;
-            } else {
-                Option<string> res = func_table.rtype(top.value, vector<string>{left.type, right.type});
-                if(res.valid == false){ 
-                    print("Type error - no operator defined for", left.type, top.value, right.type); 
-                    return false;
-                }
-                type = res.result;
             }
+            Type type = res.result;
+            
             Expression ex = Expression(Binary_expr(top, left, right), type);
             expr.push(ex);
         } else if (top.type == UOP){
             if(expr.size() < 1){ return false; }
             Expression only = expr.top(); expr.pop();
             // determine type
-            string type = "";
-            if(only.type == ""){
-                cout << "Type error in expression - type of operand is unknown (uop)" << endl;
+            Option<Type> res = func_table.rtype(top.value, vector<Type>{only.type});
+            if(res.valid == false){ 
+                print("Type error - no operator defined for", top.value, only.type); 
                 return false;
-            } else {
-                Option<string> res = func_table.rtype(top.value, vector<string>{only.type});
-                if(res.valid == false){ 
-                    print("Type error - no operator defined for", top.value, only.type); 
-                    return false;
-                }
-                type = res.result;
             }
+            Type type = res.result;
             Expression ex = Expression(Unary_expr(top, only), type);
             expr.push(ex);
         }
@@ -259,67 +256,72 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
         // cout << token.toString() << endl;
         switch(token.type){
             case INT_LITERAL: {
-                Expression ex = Expression(Literal(token), "int");
+                Expression ex = Expression(Literal(token), type_int);
                 expr.push( ex );
                 current = ITEM;
                 break;
                 }
             case FLOAT_LITERAL: {
-                Expression ex = Expression(Literal(token), "float");
+                Expression ex = Expression(Literal(token), type_float);
                 expr.push( ex );
                 current = ITEM;
                 break;
             }
             case CHAR_LITERAL: {
-                Expression ex = Expression(Literal(token), "char");
+                Expression ex = Expression(Literal(token), type_char);
                 expr.push( ex );
                 current = ITEM;
                 break;
             }
             case STRING_LITERAL: {
-                Expression ex = Expression(Literal(token), "string");
-                expr.push( ex );
-                current = ITEM;
-                break;
+                print("String literals not yet supported");
+                ret.valid = false; return ret;
+                // Expression ex = Expression(Literal(token), Type_string);
+                // expr.push( ex );
+                // current = ITEM;
+                // break;
             }
 
             case BOOL_LITERAL: {
-                Expression ex = Expression(Literal(token), "bool");
+                Expression ex = Expression(Literal(token), type_bool);
                 expr.push( ex );
                 current = ITEM;
                 break;
             }
 
             case NAME: {
+                if(entity_table.get(it->value) == FUNCTION){
+                    Expression ex = Expression(Variable(token), type_function);
+                    expr.push( ex );
+                    current = ITEM;
+                    break;
+                }
                 // TODO: type table
-                Option<string> optional = vars.use_var(it->value);
-                string var_type;
-                if(!optional.valid){
-                    if(func_table.check(it->value) != 0){
-                        var_type = "$function";
-                    } else {
-                        Var_status vs = vars.getStatus(it->value);
-                        cout << "Error: cannot use variable " << it->value << endl;
-                        switch(vs){
-                            case DESTROYED:
-                                cout << "Variable already destroyed" << endl;
-                                break;
-                            case MISSING:
-                                cout << "Variable undefined" << endl;
-                                break;
-                            case DECLARED_NO_TYPE:
-                                cout << "Type unknown" << endl;
-                                break;
-                            case DECLARED_W_TYPE:
-                                cout << "Variable unitialized (garbage value)" << endl;
-                                break;
-                            default:
-                                cout << "DEEP ERROR: unexpected result" << endl;
-                                break;
-                        }
-                        ret.valid = false;
-                        return ret;
+                Option<Type> optional = vars.use_var(it->value);
+                Type var_type;
+                if(optional.valid == false){
+                    Var_status vs = vars.getStatus(it->value);
+                    cout << "Error: cannot use variable " << it->value << endl;
+                    switch(vs){
+                        case DESTROYED:
+                            cout << "Variable already destroyed" << endl;
+                            break;
+                        case MISSING:
+                            cout << "Variable undefined" << endl;
+                            break;
+                        case DECLARED_NO_TYPE:
+                            cout << "Type unknown" << endl;
+                            break;
+                        case DECLARED_W_TYPE:
+                            cout << "Variable unitialized (garbage value)" << endl;
+                            break;
+                        default:
+                            cout << "DEEP ERROR: unexpected result" << endl;
+                            break;
                     }
+                    ret.valid = false;
+                    return ret;
+                
                 } else {
                     var_type = optional.result;
                 }
@@ -356,7 +358,7 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                     fnc.name = *(it-1);
                     // no arguements
                     // TODO
-                    Option<string> type_maybe = func_table.rtype(fnc.name.value, vector<string>{});
+                    Option<Type> type_maybe = func_table.rtype(fnc.name.value, vector<Type>{});
                     if(type_maybe.valid == false){
                         print("(0) No function with signature ", fnc.name.value, "()");
                     }
@@ -393,17 +395,13 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                         fnc.name = fnc_name;
                         fnc.args = result.multi_expr;
                         // type checking
-                        vector<string> arg_types;
+                        vector<Type> arg_types;
                         arg_types.reserve(fnc.args.size());
 
                         for(const Expression& e : fnc.args){
-                            if(e.type == ""){
-                                print("Type of expression in function call unknown");
-                                ret.valid = false; return ret;
-                            }
                             arg_types.push_back(e.type);
                         }
-                        Option<string> type_maybe = func_table.rtype(fnc.name.value, arg_types);
+                        Option<Type> type_maybe = func_table.rtype(fnc.name.value, arg_types);
                         if(type_maybe.valid == false){
                             print("No function with signature ", fnc.name.value, "()", arg_types);
                         }
@@ -415,17 +413,13 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                         arr.name = fnc_name;
                         arr.args = result.multi_expr;
                         // TODO type checking
-                        vector<string> arg_types;
+                        vector<Type> arg_types;
                         arg_types.reserve(arr.args.size());
 
                         for(const Expression& e : arr.args){
-                            if(e.type == ""){
-                                print("Type of expression in array call unknown");
-                                ret.valid = false; return ret;
-                            }
                             arg_types.push_back(e.type);
                         }
-                        Option<string> type_maybe = func_table.rtype(arr.name.value, arg_types);
+                        Option<Type> type_maybe = func_table.rtype(arr.name.value, arg_types);
                         if(type_maybe.valid == false){
                             print("No function with signature ", arr.name.value, "[]", arg_types);
                         }
@@ -477,37 +471,28 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
             Expression right = expr.top(); expr.pop();
             Expression left = expr.top(); expr.pop();
             // determine type
-            string type = "";
-            if(left.type == "" || right.type == ""){
-                cout << "Type error in expression - type of operand is unknown" << endl;
-                ret.valid = false; return ret;
-            } else {
-                Option<string> res = func_table.rtype(top.value, vector<string>{left.type, right.type});
-                if(res.valid == false){ 
-                    print("Type error - no operator defined for", left.type, top.value, right.type); 
-                    ret.valid = false;
-                    return ret;
-                }
-                type = res.result;
+            Option<Type> res = func_table.rtype(top.value, vector<Type>{left.type, right.type});
+            if(res.valid == false){ 
+                print("Type error - no operator defined for", left.type, top.value, right.type); 
+                ret.valid = false;
+                return ret;
             }
+            Type type = res.result;
+
             Expression ex = Expression(Binary_expr{top, left, right}, type);
             expr.push(ex);
         } else if (top.type == UOP){
             if(expr.size() < 1 ){ ret.valid = false; ret.valid = false; cout << "3" << endl; return ret; }
             Expression only = expr.top(); expr.pop();
             // determine type
-            string type = "";
-            if(only.type == ""){
-                cout << "Type error in expression - type of operand is unknown (uop)" << endl;
+
+            Option<Type> res = func_table.rtype(top.value, vector<Type>{only.type});
+            if(res.valid == false){ 
+                print("Type error - no operator defined for", top.value, only.type); 
                 ret.valid = false; return ret;
-            } else {
-                Option<string> res = func_table.rtype(top.value, vector<string>{only.type});
-                if(res.valid == false){ 
-                    print("Type error - no operator defined for", top.value, only.type); 
-                    ret.valid = false; return ret;
-                }
-                type = res.result;
             }
+            Type type = res.result;
+
             Expression ex = Expression(Unary_expr(top, only), type);
             expr.push(ex);
         }
@@ -715,7 +700,7 @@ ParseIfOption parseIf(SymbolTable& vars, int line, Iter start_it){
         if(result.valid == false){
             print("Invalid expression in condition of if statement");
             ret.valid = false; return ret;
-        } else if(result.expr.type != "bool"){
+        } else if(result.expr.type != type_bool){
             print("If condition is not a boolean");
             ret.valid = false; return ret;
         }
@@ -774,7 +759,7 @@ ParseWhileOption parseWhile(SymbolTable& vars, int line, Iter start_it){
         print("Error parsing condition in while loop");
         ret.valid = false; return ret;
     }
-    if(result.expr.type != "bool"){
+    if(result.expr.type != type_bool){
         print("Error, while condition is not a boolean");
         ret.valid = false; return ret;
     }
@@ -1105,7 +1090,7 @@ CodeBlockOption parseCodeBlock(Iter start, const ScopeInfo& info) {
         // parse return statement
         } else if(it->value == "return"){
             if((it+1)->type == EOL){
-                if(vars.returnType != "none"){
+                if(vars.returnType != type_none){
                     print("Error in return statement - expected type none");
                     ret.valid = false; goto endf;
                 }
@@ -1177,11 +1162,15 @@ ParseFunction parseFunctionSignature(Iter start){
     index++;
     while(index->value != ")"){
         if(index->type != NAME || (index + 1)->type != NAME){
-            cout << "Invalid function declaration (3)" << endl; 
+            print("Invalid function declaration (3)"); 
             ret.valid = false; return ret;
         } else {
             // push type and parameter names
-            ret.result.param_types.push_back(index->value);
+            if(!type_table.contains(index->value)){
+                print("Invalid type in function declaration");
+            } 
+            Type t = type_table.get_type(index->value);
+            ret.result.param_types.push_back(t);
             ret.result.param_names.push_back((index + 1)->value);
         }
         if((index + 2)->type == COMMA){
@@ -1196,15 +1185,18 @@ ParseFunction parseFunctionSignature(Iter start){
     }
     index++;
     if(index->value != "->"){
-        ret.result.return_type = "none";
+        ret.result.return_type = type_none;
     } else {
         index++;
         // modify for tuples/variants later
         if(index->type != NAME){
-            cout << "Invalid function declaration (6)" << endl; 
+            print("Invalid function declaration (6)"); 
             ret.valid = false; return ret;
         } 
-        ret.result.return_type = index->value;
+        if(!type_table.contains(index->value)){
+            print("Return type of function is not valid:", index->value);
+        }
+        ret.result.return_type = type_table.get_type(index->value);
         index++;
     }
     if(index->value == "{"){
@@ -1236,7 +1228,7 @@ ParseFunction parseFunctionBody(Iter start, Function f){
     CodeBlockOption result = parseCodeBlock(start, si);
     if(!result.valid){
         ret.valid = false; 
-    } else if(result.codeblock.vars.hasReturn == false && ret.result.return_type != "none"){
+    } else if(result.codeblock.vars.hasReturn == false && ret.result.return_type != type_none){
         print("Error, function", ret.result.name, "missing return");
     } else {
         ret.result.code = result.codeblock;
@@ -1361,7 +1353,7 @@ ParseProgram parseProgram(Iter start){
                     print("Error - main function defined multiple times");
                     ret.valid = false; return ret;
                 }
-                if(!(result.result.param_names.size() == 0 && result.result.return_type == "none")){
+                if(!(result.result.param_names.size() == 0 && result.result.return_type == type_none)){
                     print("Error - main function signature must have no parameters and return none");
                     ret.valid = false; return ret;
                 }
@@ -1416,6 +1408,7 @@ ParseProgram parseProgram(Iter start){
             ret.valid = false; return ret;
         }
     }
+    func_table.printAll();
     // finish parsing structs, enums, global scope, etc
     // parseStructs(struct_list);
 

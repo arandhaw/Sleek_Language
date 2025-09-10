@@ -4,7 +4,7 @@ $int haHa($int $x, $float $y);
 
 int main(){
   $int x = $int{10};
-  $float y = exp(mul(add($float{3.1}, $int{4}), $int{5}), $int{2});
+  $float y = $float{10.4};
   $int z = $haHa(x, y);
   $print(z);
   return 0;

@@ -21,6 +21,7 @@ using namespace std;
 //valid Entities in a program
 // struct Program;
 // iterator for Tokens
+
 using Iter = vector<Token>::iterator;
 
 // struct Generic_type {    
@@ -72,11 +73,11 @@ struct Array_index {
 
 using Expr_value = variant<Literal, Unary_expr, Binary_expr, Variable, Function_call, Array_index>;
 struct Expression {
-    string type;
+    Type type;
     Expr_value expr;
     bool assignable;
     Expression(void){};
-    Expression(Expr_value expr, string type) : type(type), expr(expr){};
+    Expression(Expr_value expr, Type type) : type(type), expr(expr){};
 };
 
 
@@ -116,28 +117,28 @@ struct Codeblock {
 };
 
 struct ScopeInfo {
-    string return_type;
+    Type return_type;
     vector<string> param_names;
-    vector<string> param_types;
+    vector<Type> param_types;
     SymbolTable* parent;
 };
 
 struct Function {
     string name;
-    string return_type;
+    Type return_type;
     vector<string> param_names;
-    vector<string> param_types;
+    vector<Type> param_types;
     Codeblock code;
     Iter code_start; // start of codeblock
 };
 
 struct Signature {
     string name;
-    string return_type;
+    Type return_type;
     // vector<string> param_names;
-    vector<string> param_types;
+    vector<Type> param_types;
     Signature(){}
-    Signature(string name, vector<string> param_types, string return_type):
+    Signature(string name, vector<Type> param_types, Type return_type):
         name(name), param_types(param_types), return_type(return_type){}
 };
 
@@ -179,7 +180,6 @@ class Function_table {
         struct Func_Data {
             Signature signature;
             string cname;
-            // Func_Data(){};
         };
         unordered_multimap<string, Func_Data> table;
     public:
@@ -191,10 +191,10 @@ class Function_table {
     bool add(Signature f);
     bool add(Signature f, const string& cname);
     // return type of function
-    Option<string> rtype(const string& name, const vector<string>& params);
+    Option<Type> rtype(const string& name, const vector<Type>& params);
 
     // search the table using the name and parameters
-    Option<Signature> search(const string& name, const vector<string>& params);
+    Option<Signature> search(const string& name, const vector<Type>& params);
     // obtain the cname "codegen name" of the function
     // precondition: the function exists
     string cname(const string& name, const vector<Expression>& args);
