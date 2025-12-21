@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <variant>
+#include <functional> // for std::hash
 
 #include "utils.cpp"
 
@@ -25,7 +26,15 @@ struct Type {
         return type_id != other.type_id;
     }
 };
-
+// defined hash for Type (so Type can be used in unordered_map)
+template <>
+struct std::hash<Type> {
+    size_t operator()(const Type& obj) const {
+        std::hash<size_t> hasher;
+        return hasher(obj.type_id);
+    }
+};
+// define so Type can be printed
 std::ostream& operator<<(std::ostream& os, const Type& obj) {
     os << obj.to_string();
     return os;
@@ -140,9 +149,9 @@ string toString(Entity x){
 }
 
 class EntityTable {
-    private:
-        unordered_map<string, Entity> table;
     public:
+        unordered_map<string, Entity> table;
+
         bool add(string x, Entity y){
             if(table.count(x) != 0){
                 return false;
@@ -158,7 +167,7 @@ class EntityTable {
                 return table[x];
             }
         }
-};
+} entity_table;
 
 struct Type_ast;
 
@@ -181,9 +190,9 @@ struct Type_ast {
 
 struct TypeInfo {
     string name;
-    size_t size;
+    size_t size;    // in bytes
     Entity supertype;
-    Type_ast structure;
+    // Type_ast structure;
     bool copyable;
     bool sized;
     bool destructor;
@@ -215,7 +224,7 @@ class TypeTable {
             }
         }
 
-        TypeInfo get_info(Type t){
+        TypeInfo& get_info(Type t){
             return table.at(t.type_id);
         }
 
@@ -240,14 +249,16 @@ string Type::to_string() const {
 
 /// For struct table
 struct struct_element {
-    string type;
+    Type type;
     string field;
+    // a type that contains no user defined types is concrete
+    bool user_defined_type;
 };
 
 struct StructInfo {
     vector<struct_element> elements;
-    bool size_known;
     bool flag_for_algo;
+    bool fully_defined_type;
 };
 // this will be used in struct_table
 

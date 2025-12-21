@@ -186,6 +186,7 @@ void Codegen::genExpression(const Expression& e){
                 raw("$bool{", lit.value,"}"); 
             break;
             case(STRING_LITERAL):   
+                raw("$string{", lit.value, ", ", lit.value.length()-2, "}");
             break;
             default:
             cout << "Deep error in codegen: literal unrecognized" << endl;

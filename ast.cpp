@@ -31,6 +31,9 @@ Array_index::Array_index(Token name) {
 // function table
 
 bool Function_table::add(Signature f){
+    if(entity_table.table.count(f.name) == 0){
+        entity_table.add(f.name, FUNCTION);
+    }
     Option<Signature> duplicate = search(f.name, f.param_types);
     if(duplicate.valid == true){
         print("Error in functiontable.add", f.name, f.param_types);

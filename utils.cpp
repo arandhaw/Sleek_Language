@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <string>
 #include <array>
+#include <exception>
 
 using namespace std;
 
@@ -51,19 +52,21 @@ using namespace std;
 //     size_t length;
 // }
 
-// string x;
+
+// // string x;
 // class gstring {
 //     private:
 //         char x; 
 //         union {
-//             str string_literal;
-//             char small_string[23];
-            
-//         }
+//             str read_only_string;
+//             string heap_string;
+//         } data;
 //     public:
-//     gstring(string x)
-//     gstring(const char *){
-
+//     gstring(string x){
+        
+//     }
+//     gstring(const char * data){
+        
 //     }
 //     gstring copy(){
 

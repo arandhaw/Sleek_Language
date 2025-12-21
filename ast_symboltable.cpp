@@ -5,59 +5,6 @@
 // holds types as unordered map: str -> type_info object
 // operations: add, check, info
 
-// FunctionTable - all functions in current module
-// what we might have: built-in functions, user defined functions in sleek
-// user defined functions in C++, C - we need a way to translate types
-// string -> 
-
-// enum class Supertype {
-//     PRIMITIVE
-// };
-
-// struct Type_info {
-//     string codegen_name;
-//     Supertype supertype;
-//     Type_info(){}
-//     Type_info(string codegen_name, Supertype st) : 
-//         codegen_name(codegen_name), supertype(st){}
-// };
-
-// // list of available types
-// struct Type_table {
-//     private:
-//         unordered_map<string, Type_info> table;
-//     public:
-//         bool add(string name, Type_info type_info){
-//             if(table.count(name)){
-//                 cout << "type already exists" << endl;
-//                 return false;
-//             } else {
-//                 table[name] = type_info;
-//                 return true;
-//             }
-//         }
-//         Option<Type_info> search(string name){
-//             if(check(name)){
-//                 return Option(table.at(name));
-//             }
-//             return Option<Type_info>();
-//         }
-
-//         bool check(string name){
-//             return table.count(name);
-//         }
-// };
-
-// enum Function_type {
-//     BUILTIN,
-//     USER_DEFINED
-// };
-
-// struct Function_info {
-//     Function_type type;
-// };
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 

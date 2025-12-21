@@ -24,9 +24,22 @@ using namespace std;
 
 #include <array>
 
+void printMode(const $string& x){
+    if(x.tag == $string::Tag::heap_str){
+        cout << "heap string" << endl;
+    } else {
+        cout << "const string" << endl;
+    }
+}
+
 int main() {
     // Write C++ code here
-    Box<string>("hello my friend");
+    $string y("my name is francisco montoya. You killed my father. Prepare to die", 30);
+    y.print();
+    printMode(y);
+    y.set(0, 'M');
+    y.print();
+    printMode(y);
 
     return 0;
 }

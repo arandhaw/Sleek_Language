@@ -202,5 +202,5 @@ class Function_table {
     int check(const string& name);
     
     void printAll();
-};
+} func_table;
 

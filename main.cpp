@@ -12,8 +12,14 @@ std::string readFileIntoString(const std::string& filePath) {
     // Read the file content into a string
     return std::string((std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>());
 }
+
+// list of built-in functions
 void init_function_table(){
     Function_table& ft = func_table;
+    ft.add(Signature{"length", vector<Type>{type_string}, type_int});
+    ft.add(Signature{"print", vector<Type>{type_string}, type_none});
+    ft.add(Signature{"copy", vector<Type>{type_string}, type_string});
+
     ft.add(Signature{"print", vector<Type>{type_int}, type_none});
     ft.add(Signature{"print", vector<Type>{type_float}, type_none});
     ft.add(Signature{"print", vector<Type>{type_char}, type_none});
@@ -91,6 +97,7 @@ void init_function_table(){
     // cout << ft.rtype("+", vector<Type>{type_float, type_int}).valid << endl;
 }
 
+// list of builtin entities
 void init_entity_table(){
     // list of valid entities - structs, enums, primitive_types
     entity_table.add("int", PRIMITIVE_TYPE);
@@ -99,7 +106,8 @@ void init_entity_table(){
     entity_table.add("bool", PRIMITIVE_TYPE);
     entity_table.add("byte", PRIMITIVE_TYPE);
     entity_table.add("char", PRIMITIVE_TYPE);
-    entity_table.add("print", FUNCTION);
+    entity_table.add("string", PRIMITIVE_TYPE);
+    // built-in functions automatically added to entity table
 }
 
 // struct TypeInfo {
@@ -112,21 +120,17 @@ void init_entity_table(){
 //     bool destructor;
 // };
 
-// Type type_none;
-// Type type_int;
-// Type type_float;
-// Type type_byte;
-// Type type_bool;
-// Type type_char;
-
+// initialize built-in types
 void init_type_table(){
-    type_none = type_table.insert( TypeInfo{"none", sizeof($none), PRIMITIVE_TYPE, Type_ast{Named_type{}}, true, true, false} );
-    type_int = type_table.insert( TypeInfo{"int", sizeof($int), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, false} );
-    type_float = type_table.insert( TypeInfo{"float", sizeof($float), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, false} );
-    type_byte = type_table.insert( TypeInfo{"byte", sizeof($byte), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, false} );
-    type_bool = type_table.insert( TypeInfo{"bool", sizeof($bool), PRIMITIVE_TYPE, Type_ast{Named_type{}}, true, true, false} );
-    type_char = type_table.insert( TypeInfo{"char", sizeof($char), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, false} );
-    type_function = type_table.insert( TypeInfo{"Function", 2*sizeof(int*), PRIMITIVE_TYPE,  Type_ast{Named_type{}}, true, true, true} );
+    // name, size (bytes), supertype, copyable, sized, destructor
+    type_none = type_table.insert( TypeInfo{"none", sizeof($none), PRIMITIVE_TYPE, true, true, false} );
+    type_int = type_table.insert( TypeInfo{"int", sizeof($int), PRIMITIVE_TYPE, true, true, false} );
+    type_float = type_table.insert( TypeInfo{"float", sizeof($float), PRIMITIVE_TYPE, true, true, false} );
+    type_byte = type_table.insert( TypeInfo{"byte", sizeof($byte), PRIMITIVE_TYPE, true, true, false} );
+    type_bool = type_table.insert( TypeInfo{"bool", sizeof($bool), PRIMITIVE_TYPE, true, true, false} );
+    type_char = type_table.insert( TypeInfo{"char", sizeof($char), PRIMITIVE_TYPE, true, true, false} );
+    type_function = type_table.insert( TypeInfo{"Function", 2*sizeof(int*), PRIMITIVE_TYPE, true, true, true} );
+    type_string = type_table.insert(TypeInfo{"string", sizeof($string), PRIMITIVE_TYPE, false, true, false});
 }
 
 void startup(){

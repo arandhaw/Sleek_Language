@@ -1,27 +1,6 @@
 
-#{
-struct A {
-    A x
-    int y
-}
-
-struct B {
-    int x
-    int y
-}
-}#
-
 # hi
 func main(){ 
-    x = 10
-    y = 10.4
-    z = haHa(x, y);
-    print(z);
-}
-
-func haHa(int x, float y) -> int { 
-    print(x)
-    print(y)
-    return x
+    print(length("hello my friend"))
 }
 
