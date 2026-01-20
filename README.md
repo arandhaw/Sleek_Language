@@ -7,4 +7,6 @@ The code is currently organized into a few pieces
 - Symboltable
 - Codegen (TBD)
 
+The file user_manual.txt has an overview of syntax. Not exhaustive yet.
+
 As of now, the parsing of expressions, assignments, and the verification of types is implemented. Functions, while loops, if/else statements, strings and structs are also implemented. Things in progress include arrays, enums, tuples, variants, and smart pointers. Much to do!
