@@ -1,0 +1,84 @@
+This is a quick guide to sleek syntax. 
+
+Variables:
+Built-in types: int, float, char, string, bool, none
+
+<name> = <expression>
+my_int = 10
+my_float = 10.3
+my_char = 't'
+my_string = "ten"
+my_bool = true
+my_none = my_none
+
+When a variable is created, the type is inferred. 
+x = 10       # x is inferred to be integer
+After creation, a variable has the same type forever.
+The program won't compile if an existing variable is assigned a different type
+x = 1.0      # error: x is an int, can't assign a float to int
+
+Comments: 
+# this is a comment
+#( this is a multi-line comment )#
+
+Operators: 
+
+Arithmetic operators: 
++, -, *, /, %, ^, **, //
+% is modulus, ^ is exponential, ** is integer exponential, // is integer division
+Unary minus: - (negates an expression)
+
+All these operators work on integers and floats - the output type depends on operation
+int + int -> int
+int + float -> float
+int / int -> float  # this is different from C, / is true division
+int // int -> int   # if you want integer division use //
+int ** int -> int   # integer exponential
+int ^ int -> float  # floating point exponential
+
+Conditional operations:
+and, or, >, <, >=, <=, !=, ==
+! is unary NOT operator
+All of these expressions return a boolean
+
+Order of operations:
+function calls, field access (.), array indexes
+{"!", unary -},
+{"^", "**"},
+{"*", "/", "//", "%"},
+{"+", "-"},
+{"==", "!=", "<=", ">=", "<", ">"},
+{"and"},
+{"or"}
+
+Functions: 
+All programs start from main function 
+func main() -> None { 
+    ... 
+}
+
+Functions have the following syntax
+func <name>(<type> <name>, <type> <name>,...) -> <return-type> { 
+    ...
+}
+If return type is none, you can omit the return type
+Functions can be declared in any order
+
+While loops:
+
+while <condition> {
+    ...
+}
+
+If/else:
+
+if <condition> {
+    ...
+} else if <condition> {
+    ...
+} else {
+    ...
+}
+
+Expressions:
+Expressions can contain binary expressions, unary expressions, function calls, literals, etc
