@@ -188,10 +188,16 @@ struct Type_ast {
     variant<Named_type, Tuple_type, Array_type> info;
 };
 
+struct field {
+    string name;
+    Type type;
+};
+
 struct TypeInfo {
     string name;
     size_t size;    // in bytes
     Entity supertype;
+    vector<field> fields;
     // Type_ast structure;
     bool copyable;
     bool sized;
@@ -235,9 +241,7 @@ class TypeTable {
         string get_string(Type t){
             return table.at(t.type_id).name;
         }
-};
-
-TypeTable type_table;
+} type_table;
 
 // methods of type class
 string Type::to_string() const {

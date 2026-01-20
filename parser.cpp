@@ -98,8 +98,7 @@ struct ParseTypeOption {
 //         ret.end = it+1;
 //     } else if(it->type == OPEN_BRACKET){
 //         if(it->value == "("){
-//             Tuple_type x;
-            
+//             Tuple_type x;        
 //             if((it+1)->value == ")"){
 //                 print("Error: () is not a valid type");
 //                 ret.valid = false; return ret;
@@ -252,7 +251,6 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
     stack<Expression> expr;
 
     // shunting yard algorithm
-    
     for(; it != tokens.end(); it++){
         Token token = *it;
         // cout << token.toString() << endl;
@@ -296,42 +294,114 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                     Expression ex = Expression(Variable(token), type_function);
                     expr.push( ex );
                     current = ITEM;
-                    break;
-                }
-                // TODO: type table
-                Option<Type> optional = vars.use_var(it->value);
-                Type var_type;
-                if(optional.valid == false){
-                    Var_status vs = vars.getStatus(it->value);
-                    cout << "Error: cannot use variable " << it->value << endl;
-                    switch(vs){
-                        case DESTROYED:
-                            cout << "Variable already destroyed" << endl;
-                            break;
-                        case MISSING:
-                            cout << "Variable undefined" << endl;
-                            break;
-                        case DECLARED_NO_TYPE:
-                            cout << "Type unknown" << endl;
-                            break;
-                        case DECLARED_W_TYPE:
-                            cout << "Variable unitialized (garbage value)" << endl;
-                            break;
-                        default:
-                            cout << "DEEP ERROR: unexpected result" << endl;
-                            break;
+                } else if(!operations.empty() && operations.top().value == "."){
+                    if(expr.empty()){
+                        print("Error - unexpected . in expression");
+                        ret.valid = false;
+                        return ret;
                     }
-                    ret.valid = false;
-                    return ret;
-                
+                    Expression object = expr.top();
+                    Type type = object.type;
+                    TypeInfo& info = type_table.get_info(type);
+                    
+                    Token tok = *it;
+                    bool field_exists = false;
+                    field field_data;
+                    // search through fields
+                    // vector search - inefficient, but ok since most structs have few fields
+                    for(auto& f : info.fields){
+                        if(f.name == tok.value){
+                            field_exists = true;
+                            field_data = f;
+                            break;
+                        }
+                    }
+                    if(!field_exists){
+                        print("Error, variable of type", type.to_string(), 
+                            "does not have a field named", tok.value);
+                        ret.valid = false; return ret;
+                    }
+                    expr.pop();
+                    operations.pop();
+                    Expression ex = Expression{Field_access{object, *it}, field_data.type};
+                    expr.push(ex);
+                    current = ITEM;
+
+                } else if(entity_table.get(it->value) == STRUCT){
+                    if((it+1)->value != "{"){
+                        print("Error - invalid use of struct in expression");
+                        ret.valid = false;
+                        return ret;
+                    }
+                    ParseMulti result = parseMulti(vars, it+2);
+                    if(result.valid == false){
+                        print("Error while parsing expression initializing struct (1)");
+                        ret.valid = false;
+                        return ret;
+                    }
+                    if(result.end->type != EOL && (result.end+1)->value != "}"){
+                        print("Error while parsing expression initializing struct (2)");
+                        ret.valid = false;
+                        return ret;
+                    }
+                    
+                    Type struct_type = type_table.get_type(it->value);
+                    const StructInfo& info = struct_table[struct_type];
+                    if(result.multi_expr.size() != info.elements.size()){
+                        print("Error initializing struct - number of arguements don't match signature");
+                        ret.valid = false;
+                        return ret;
+                    }
+                    for(int i = 0; i < info.elements.size(); i++){
+                        if(info.elements[i].type != result.multi_expr[i].type){
+                            print("Error initializing struct - arguement", i, "type doesn't match signature");
+                            ret.valid = false;
+                            return ret;
+                        }
+                    }
+                    Struct_init si{*it};
+                    si.args = result.multi_expr;
+                    Expression ex = Expression(si, struct_type);
+                    expr.push( ex );
+                    current = ITEM;
+                    it = result.end + 1;    // skip the added newline, end on }
                 } else {
-                    var_type = optional.result;
+                    // TODO: type table
+                    Option<Type> optional = vars.use_var(it->value);
+                    Type var_type;
+                    if(optional.valid == false){
+                        Var_status vs = vars.getStatus(it->value);
+                        cout << "Error: cannot use variable " << it->value << endl;
+                        switch(vs){
+                            case DESTROYED:
+                                cout << "Variable already destroyed" << endl;
+                                break;
+                            case MISSING:
+                                cout << "Variable undefined" << endl;
+                                break;
+                            case DECLARED_NO_TYPE:
+                                cout << "Type unknown" << endl;
+                                break;
+                            case DECLARED_W_TYPE:
+                                cout << "Variable unitialized (garbage value)" << endl;
+                                break;
+                            default:
+                                cout << "DEEP ERROR: unexpected result" << endl;
+                                break;
+                        }
+                        ret.valid = false;
+                        return ret;
+                    
+                    } else {
+                        var_type = optional.result;
+                    }
+                        Expression ex = Expression(Variable(token), var_type);
+                        expr.push( ex );
+                        current = ITEM;
+                    }
                 }
-                Expression ex = Expression(Variable(token), var_type);
-                expr.push( ex );
-                current = ITEM;
                 break;
-                }
+
             case BOP: case UOP: {
                 bool success = shunt(operations, expr, token);
                 if(!success){ 
@@ -1360,6 +1430,7 @@ Option<StructInfo> parseStruct(const Entity_start& obj){
             ret.valid = false; return ret;
         }
     }
+    
     ret.result.fully_defined_type = !contains_user_defined_type;
     ret.result.flag_for_algo = false;
     return ret;
@@ -1443,6 +1514,10 @@ Option<vector<Type>> parseStructs(vector<Entity_start>& list){
         data.sized = true;
         for(struct_element& x : info.elements){
             data.size += type_table.get_info(x.type).size;
+        }
+        // fill out type fields
+        for(struct_element& x : info.elements){
+            data.fields.push_back(field{x.field, x.type}); 
         }
     }
     return ret;
@@ -1549,7 +1624,7 @@ ParseProgram parseProgram(Iter start){
                 ret.valid = false; return ret;
             }
             // add the struct to the type table
-            Type type = type_table.insert(TypeInfo{name->value, 0, STRUCT, false, false, false});
+            Type type = type_table.insert(TypeInfo{name->value, 0, STRUCT, vector<field>{}, false, false, false});
             
             // save name of struct, iterator to beginning of block
             struct_list.push_back({type, startOfBlock});
@@ -1574,6 +1649,7 @@ ParseProgram parseProgram(Iter start){
         ret.valid = false; return ret;
     }
     printStructs(opt.result);
+    ret.result.decl_order = opt.result;
 
     // complete parsing of functions
     // start with main

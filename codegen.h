@@ -21,11 +21,13 @@ class Codegen {
     void genProgram(const Program& p);
     void genFunction(const Function& program);
     void declareFunctions(const unordered_map<string, Function>& functions);
+    void declareStructs(const vector<Type>& decl_order);
     void genCodeblock(const Codeblock& cb);
     void genMain(const Function& program);
     void genBasicLine(int line_num, const Basic_Line& line, const SymbolTable& vars);
     void genExpression(const Expression& e);
     void genIfBlock(const IfBlock& ifBlock);
+    void genWhileBlock(const WhileBlock& whileBlock);
 
     Codegen(){}
     // prepare file stream

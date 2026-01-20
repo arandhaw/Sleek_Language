@@ -11,6 +11,11 @@ Unary_expr::Unary_expr(Token op, Expression middle) {
     *(this->middle) = middle;       // copy passed arguement
 }
 
+Field_access::Field_access(Expression object, Token field){
+    this->field = field;
+    this->object = new Expression(object);
+}
+
 Binary_expr::Binary_expr(Token op, Expression left, Expression right){
     this->op = op;
     this->left = new Expression;  // allocate memory for an Expression
@@ -19,14 +24,10 @@ Binary_expr::Binary_expr(Token op, Expression left, Expression right){
     *(this->right) = right;       // copy passed arguement
 }
 
+Function_call::Function_call(Token name) : name(name){};
+Struct_init::Struct_init(Token name) : name(name){};
+Array_index::Array_index(Token name) : name(name){};
 
-Function_call::Function_call(Token name) {
-    this->name = name;
-}
-
-Array_index::Array_index(Token name) {
-    this->name = name;
-}
 /// function table
 // function table
 

@@ -1,6 +1,26 @@
+struct Dog {
+    string name
+    string type
+}
+
+struct Xray {
+    int size
+    string y
+    Dog dog
+}
 
 # hi
 func main(){ 
-    print(length("hello my friend"))
+    x = 0
+    i = 0
+    while i < 10 {
+        x += i
+        i = i + 1
+    }
+    print(x)
 }
+
+
+
+
 

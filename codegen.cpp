@@ -19,6 +19,8 @@ unordered_map<string, string> operator_fname =
 void Codegen::genProgram(const Program& program){
     out("#include \"builtins.cpp\"");
     raw("\n");
+    declareStructs(program.decl_order);
+    raw("\n");
     declareFunctions(program.functions);
     raw('\n');
     genMain(program.main);
@@ -27,6 +29,25 @@ void Codegen::genProgram(const Program& program){
         raw("\n");
         genFunction(f.second);
         raw("\n");
+    }
+}
+
+void Codegen::declareStructs(const vector<Type>& decl_order){
+    // declare all the structs
+    for(const auto& type : decl_order){
+        TypeInfo& ti = type_table.get_info(type);
+        if(ti.supertype == STRUCT){
+            raw("struct $", ti.name, " {\n");
+            indent();
+            for(auto& field: ti.fields){
+                tab(); 
+                raw("$", field.type, " ", field.name, ";\n");
+            }
+            dindent();
+            line("};");
+        } else {
+            line("Only structs are being generated right now");
+        }
     }
 }
 
@@ -92,6 +113,8 @@ void Codegen::genCodeblock(const Codeblock& cb){
             // TODO
         } else if(holds_alternative<IfBlock>(i)){
             genIfBlock(get<IfBlock>(i));
+        } else if(HAS<WhileBlock>(i)){
+            genWhileBlock(get<WhileBlock>(i));
         } else if(holds_alternative<ReturnLine>(i)){
             ReturnLine rl = get<ReturnLine>(i);
             if(rl.noneReturn){
@@ -234,7 +257,38 @@ void Codegen::genExpression(const Expression& e){
             vector<Expression>{*unary.middle});
         raw(func_name, "("); genExpression(*unary.middle); raw(")");
     }
+    else if(holds_alternative<Field_access>(expr)){
+        Field_access& fa = get<Field_access>(expr);
+        raw("(");
+        genExpression(*fa.object);
+        raw(".");
+        raw(fa.field.value);
+        raw(")");
+    } 
+    else if(holds_alternative<Struct_init>(expr)){
+        Struct_init& si = get<Struct_init>(expr);
+        raw("$", si.name.value); raw("{"); 
+        
+        auto last = si.args.end() - 1;
+        for(auto it = si.args.begin(); it != si.args.end(); it++){
+            genExpression(*it);
+            if(it != last){
+                raw(", ");
+            }
+        }
+        raw("}");
+    }
     else {
         out("(work in progress)");
     }
+}
+
+void Codegen::genWhileBlock(const WhileBlock& whileBlock){
+    tab(); raw("while(");
+    genExpression(whileBlock.condition); raw(".v");
+    raw("){\n");
+    indent();
+    genCodeblock(whileBlock.cb);
+    dindent();
+    line("}");
 }

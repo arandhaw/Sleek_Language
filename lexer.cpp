@@ -14,14 +14,14 @@ namespace lexer_globals {
 
     // characters that operators can start with
     const std::unordered_set<char> operators = 
-        {'+', '-', '*', '/', '^', '%', '&', '<', '>', '|', '!', ':', '=', '@', '?'};
+        {'+', '-', '*', '/', '^', '%', '&', '<', '>', '|', '!', ':', '=', '@', '?', '.'};
     // words that are operators
     const std::unordered_set<std::string> operator_words = {"and", "or"};
     // the list of allowed operators
     const std::unordered_set<std::string> allowed_operators = 
         {"+", "-", "*", "/", "^", "%", "&", "<", ">", ">=", "<=",  
         "|", "!", "++", "--", "**", "//", "==", "->", "::", 
-        "=", "!=", "+=", "-=", "*=", "/=", "@"};
+        "=", "!=", "+=", "-=", "*=", "/=", "@", "."};
 
     const std::unordered_set<std::string> unary_operators = {"!", "&"};
     // operators that are unary or binary

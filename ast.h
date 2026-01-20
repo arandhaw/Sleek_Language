@@ -64,6 +64,19 @@ struct Function_call {
     Function_call(Token name);
 };
 
+struct Struct_init {
+    Token name;
+    vector<Expression> args;
+    Struct_init(void){};
+    Struct_init(Token name);
+};
+
+struct Field_access {
+    Expression* object;
+    Token field;
+    Field_access(Expression object, Token field);
+};
+
 struct Array_index {
     Token name;
     vector<Expression> args;
@@ -71,7 +84,8 @@ struct Array_index {
     Array_index(Token name);
 };
 
-using Expr_value = variant<Literal, Unary_expr, Binary_expr, Variable, Function_call, Array_index>;
+using Expr_value = variant<Literal, Unary_expr, Binary_expr, Variable, 
+                    Function_call, Array_index, Struct_init, Field_access>;
 struct Expression {
     Type type;
     Expr_value expr;
@@ -145,6 +159,7 @@ struct Signature {
 struct Program {
     Function main;
     unordered_map<string, Function> functions;
+    vector<Type> decl_order;
     // EntityTable entity_table;
     // unordered_map<string, StructInfo> struct_table;
 };
