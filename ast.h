@@ -35,6 +35,16 @@ struct Literal {
     Literal(Token value) : value(value) {};
 };
 
+struct Array_literal {
+    Type element_type;
+    vector<size_t> dims;
+    vector<Expression> elements;
+};
+
+struct Tuple_literal {
+    vector<Expression> elements;
+};
+
 struct Variable {
     // add a type here
     Token name;
@@ -85,7 +95,8 @@ struct Array_index {
 };
 
 using Expr_value = variant<Literal, Unary_expr, Binary_expr, Variable, 
-                    Function_call, Array_index, Struct_init, Field_access>;
+                    Function_call, Array_index, Struct_init, Field_access, 
+                    Array_literal, Tuple_literal>;
 struct Expression {
     Type type;
     Expr_value expr;
@@ -159,7 +170,6 @@ struct Signature {
 struct Program {
     Function main;
     unordered_map<string, Function> functions;
-    vector<Type> decl_order;
     // EntityTable entity_table;
     // unordered_map<string, StructInfo> struct_table;
 };

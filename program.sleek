@@ -1,23 +1,27 @@
-struct Dog {
-    string name
-    string type
+
+struct C {
+    A a
+    B b
 }
 
-struct Xray {
-    int size
-    string y
-    Dog dog
+struct A {
+    int x
+}
+
+struct B {
+    int x
+}
+
+
+struct D {
+    int x
+    (int, (A, C)) y
 }
 
 # hi
 func main(){ 
-    x = 0
-    i = 0
-    while i < 10 {
-        x += i
-        i = i + 1
-    }
-    print(x)
+    x = (3, 4)
+    y = x.0
 }
 
 

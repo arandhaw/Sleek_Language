@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 #include "lexer.cpp"
 #include "ast.cpp"
@@ -14,7 +15,8 @@ using namespace std;
 const vector<vector<std::string>> operator_precedence = 
 {{"or"},
 {"and"},
-{"==", "!=", "<=", ">=", "<", ">"},
+{"==", "!="},
+{"<=", ">=", "<", ">"},
 {"+", "-"},
 {"*", "/", "//", "%"},
 {"^", "**"},
@@ -33,11 +35,26 @@ Type type_char;
 Type type_function;
 Type type_string;
 
+/// For struct table
+struct struct_element {
+    Type type;
+    string field;
+    // a type that contains no user defined types is concrete
+    bool user_defined_type;
+};
+
+struct StructInfo {
+    vector<struct_element> elements;
+    bool flag_for_algo; // touched by algorithm or not
+    bool fully_defined_type;    
+};
 // globals
 unordered_map<std::string, int> precedence;
 vector<Token> tokens;
+unordered_map<Type, Tuple_type> tuple_table;
+unordered_map<Type, Array_type> array_table;
 unordered_map<Type, StructInfo> struct_table;
-vector<string> struct_order;
+vector<Type> decl_order;
 // defined in different scope:
 // EntityTable entity_table;
 // Function_table func_table
@@ -58,6 +75,10 @@ struct ParseMulti;
 ParseMulti parseMulti(SymbolTable& vars, Iter it);
 struct ParseSimpleExpr;
 ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it);
+struct ParseArrayLiteral;
+ParseArrayLiteral parseArrayLiteral(SymbolTable& vars, Iter it);
+struct SubArray;
+SubArray parseArrayRecurse(SymbolTable& vars, Iter it, vector<Expression>& elements);
 struct ParseIfOption;
 ParseIfOption parseIf(SymbolTable& vars, int line, Iter start_it);
 struct ParseWhileOption;
@@ -66,6 +87,8 @@ struct ParseDeclOption;
 ParseDeclOption parseDecl(SymbolTable& vars, int line, Iter start_it);
 struct ParseDeleteOption;
 ParseDeleteOption parseDelete(SymbolTable& vars, int line, Iter start_it);
+
+Type register_tuple(vector<Type> types, bool complete);
 void printErrorLine(Iter it);
 bool resolveMemoryScopes(bool hasElse, int line, 
             SymbolTable& parent_scope, const vector<Codeblock>& child_cb);
@@ -74,95 +97,114 @@ char get_closing_bracket(char c);
 bool shunt(stack<Token>& operations, stack<Expression>& expr, Token token);
 
 struct ParseTypeOption {
-    Type_ast type;
+    Type type;
     bool valid;
     Iter end;
 };
 
-// ParseTypeOption parseType(Iter start){
-//     ParseTypeOption ret;
-//     ret.valid = true;
-//     Iter it = start;
-//     if(it->type == NAME){
-//         Named_type x;
-//         x.
-//         // if(primitive_types.count(it->value)){
-//         //     x = {it->value, PRIMITIVE_TYPE};
-//         // } 
-//         // // todo: add structs and enum type
-//         // else {
-//         //     print("Error: Unknown type:", it->value);
-//         //     ret.valid = false; return ret;
-//         //     // entity_table.get(it->value);
-//         // }
-//         ret.end = it+1;
-//     } else if(it->type == OPEN_BRACKET){
-//         if(it->value == "("){
-//             Tuple_type x;        
-//             if((it+1)->value == ")"){
-//                 print("Error: () is not a valid type");
-//                 ret.valid = false; return ret;
-//             } 
-//             while(true){
-//                 ParseTypeOption result = parseType(it + 1);
-//                 if(result.valid == false){ ret.valid = false; return ret; }
-//                 x.elements.push_back(result.type);
-//                 if(result.end->type == COMMA){
-//                     it = result.end + 1;
-//                     // (type,) is syntax for tuple with 1 element
-//                     if(x.elements.size() == 1){ 
-//                         if(it->type == CLOSED_BRACKET && it->value == ")"){
-//                             break;
-//                         }
-//                     }
-//                     continue;
-//                 } else if(result.end->value == ")"){
-//                     ret.end = result.end + 1;
-//                     break;
-//                 }
-//             }
-//         } else if(it->value == "["){
-//             Array_type x;
-//             ParseTypeOption result = parseType(it + 1);
-//             if(result.valid == false){ ret.valid = false; return ret; }
-//             x.type_ptr = new Type_ast(result.type);
-//             it++;
-//             if(it->type != COMMA){
-//                 print("Invalid type, missing comma");
-//                 ret.valid = false; return ret;
-//             }
-//             it++;
-//             x.array_size = 1;
-//             while(true){
-//                 if(it->type != INT_LITERAL){
-//                     print("Error, expected size in array declaration");
-//                     ret.valid = false; return ret;
-//                 }
-//                 size_t dimension_size = stoi(it->value);
-//                 x.array_size *= dimension_size;
-//                 it++;
-//                 if(it->type == COMMA){
-//                     continue;
-//                 } else if(it->value == "]"){
-//                     it++;
-//                     ret.end = it;
-//                     break;
-//                 } else {
-//                     print("Error while parsing array type");
-//                     ret.valid = false; return ret;
-//                 }
-//             }
-//         } else {
-//             ret.valid = false; return ret;
-//         }
-//         return ret;
-//     }
-//     // the type is also a string
-//     for(Iter i = start; i < ret.end; i++){
-//         ret.type.name.append(i->value);
-//     }
-//     return ret;
-// }
+// parse a type signature
+// can be named type, tuple, array, ...
+// add new tuple types or array types to the type_table
+// types added to the type table do not all have their information filled in
+// used while parsing structs/enums
+ParseTypeOption parseIncompleteType(Iter start){
+    ParseTypeOption ret;
+    ret.valid = true;
+    Iter it = start;
+    if(it->type == NAME){
+        if(type_table.contains(it->value)){
+            ret.type = type_table.get_type(it->value);
+            ret.end = it+1;
+        } else {
+            print("Error: type", it->value, "does not exist");
+            ret.valid = false; return ret;
+        }
+    } else if(it->type == OPEN_BRACKET && it->value == "("){
+        StructInfo si;
+        Tuple_type ti;
+        si.flag_for_algo = false;
+        si.fully_defined_type = true;
+        if((it+1)->value == ")"){
+            print("Error: () is not a valid type");
+            ret.valid = false; return ret;
+        }
+        it++;
+        for(int i = 0; ; i++){
+            ParseTypeOption result = parseIncompleteType(it);
+            if(result.valid == false){ ret.valid = false; return ret; }
+
+            // add element to structInfo
+            bool user_defined_type = primitive_types.count(result.type.to_string()) == 0;
+            si.elements.push_back(struct_element{result.type, string("e") + to_string(i), user_defined_type});
+            ti.elements.push_back(result.type);
+            if(user_defined_type){
+                si.fully_defined_type = false;
+            }
+            it = result.end;
+            if(it->type == COMMA){
+                it++;
+                // (type,) is syntax for tuple with 1 element
+                if(ti.elements.size() == 1){ 
+                    if(it->type == CLOSED_BRACKET && it->value == ")"){
+                        break;
+                    }
+                }
+            } else if(it->value == ")"){
+                it++;
+                break;
+            }
+        }
+        // insert into type table, tuple table
+        Type type = register_tuple(ti.elements, false);
+        // insert into the struct table
+        struct_table.insert({type, si});
+        ret.type = type;
+        ret.end = it;
+    } else if(it->type == OPEN_BRACKET && it->value == "["){
+        print("array type parsing not yet supported");
+        ret.valid = false; return ret;
+        // Array_type x;
+        // ret.type.name = "[";
+        // ParseTypeOption result = parseIncompleteType(it + 1);
+        // if(result.valid == false){ ret.valid = false; return ret; }
+        // x.type_ptr = new Type_ast(result.type);
+        // ret.type.name.append(result.type.name);
+        // ret.type.name.append(",");
+        // it++;
+        // if(it->type != COMMA){
+        //     print("Invalid type, missing comma");
+        //     ret.valid = false; return ret;
+        // }
+        // it++;
+        // x.array_size = 1;
+        // while(true){
+        //     if(it->type != INT_LITERAL){
+        //         print("Error, expected size in array declaration");
+        //         ret.valid = false; return ret;
+        //     }
+        //     ret.type.name.append(it->value);
+        //     size_t dimension_size = stoi(it->value);
+        //     x.array_size *= dimension_size;
+        //     it++;
+        //     if(it->type == COMMA){
+        //         ret.type.name.append(",");
+        //         continue;
+        //     } else if(it->value == "]"){
+        //         ret.type.name.append("]");
+        //         it++;
+        //         ret.end = it;
+        //         break;
+        //     } else {
+        //         print("Error while parsing array type");
+        //         ret.valid = false; return ret;
+        //     }
+        // }
+    } else {
+        print("Invalid type signature");
+        ret.valid = false; return ret;
+    }
+    return ret;
+}
 
 ///////////////////////////////////
 ///////////////////////////////////
@@ -230,6 +272,65 @@ bool shunt(stack<Token>& operations, stack<Expression>& expr, Token token){
     return true;
 }
 
+struct ParseArrayLiteral {
+    bool valid;
+    Array_literal array_literal;
+    Iter end;
+};
+
+struct SubArray {
+    bool valid;
+    Iter end;
+    vector<size_t> dims;    // dimensions of subarray (reverse order)
+};
+
+// add a tuple to the type table
+// this function assumed structs/enums have already been parsed
+Type register_tuple(vector<Type> types, bool complete){
+    string tuple_type_name = "(";    
+    string tuple_cname = "$t";        
+    Type ret; 
+    for(const auto& t : types){
+        if(tuple_type_name != "("){
+            tuple_type_name += ",";
+        }
+        tuple_type_name += t.to_string();
+        tuple_cname += "_" + t.cname();
+    }
+    tuple_type_name += ")";
+    tuple_cname += "$";
+    
+    if(type_table.contains(tuple_type_name)){
+        return type_table.get_type(tuple_type_name);
+    
+    } else {
+        TypeInfo ti;
+        ti.name = tuple_type_name;
+        ti.cname = tuple_cname;
+        ti.supertype = TUPLE;
+        for(int i = 0; i < types.size(); i++)
+            ti.fields.push_back(field{to_string(i), types[i]});
+        ti.size = 0;
+        if(complete){
+            for(const auto& t : types)
+                ti.size += type_table.get_info(t).size;
+            ti.sized = true;
+            ti.destructor = false;
+            ti.copyable = true; 
+            for(const auto& t : types)
+                ti.copyable = ti.copyable && type_table.get_info(t).copyable;
+        } 
+        // add the type to the type table
+        Type type = type_table.insert(ti);
+        tuple_table.insert({type, Tuple_type{vector<Type>{types}}});
+
+        if(complete){
+            // add the type to the declaration order
+            decl_order.push_back(type);
+        } 
+        return type;
+    } 
+}
 // end is one after end
 struct ParseSimpleExpr {
     Expression expr;
@@ -294,40 +395,9 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                     Expression ex = Expression(Variable(token), type_function);
                     expr.push( ex );
                     current = ITEM;
-                } else if(!operations.empty() && operations.top().value == "."){
-                    if(expr.empty()){
-                        print("Error - unexpected . in expression");
-                        ret.valid = false;
-                        return ret;
-                    }
-                    Expression object = expr.top();
-                    Type type = object.type;
-                    TypeInfo& info = type_table.get_info(type);
-                    
-                    Token tok = *it;
-                    bool field_exists = false;
-                    field field_data;
-                    // search through fields
-                    // vector search - inefficient, but ok since most structs have few fields
-                    for(auto& f : info.fields){
-                        if(f.name == tok.value){
-                            field_exists = true;
-                            field_data = f;
-                            break;
-                        }
-                    }
-                    if(!field_exists){
-                        print("Error, variable of type", type.to_string(), 
-                            "does not have a field named", tok.value);
-                        ret.valid = false; return ret;
-                    }
-                    expr.pop();
-                    operations.pop();
-                    Expression ex = Expression{Field_access{object, *it}, field_data.type};
-                    expr.push(ex);
-                    current = ITEM;
+                } 
 
-                } else if(entity_table.get(it->value) == STRUCT){
+                else if(entity_table.get(it->value) == STRUCT){
                     if((it+1)->value != "{"){
                         print("Error - invalid use of struct in expression");
                         ret.valid = false;
@@ -403,15 +473,50 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                 break;
 
             case BOP: case UOP: {
-                bool success = shunt(operations, expr, token);
-                if(!success){ 
-                    ret.valid = false; 
-                    cout << "Error in shunting " << token.toString() << endl;
-                    return ret; 
+                if(token.value != "."){
+                    bool success = shunt(operations, expr, token);
+                    if(!success){ 
+                        ret.valid = false; 
+                        cout << "Error in shunting " << token.toString() << endl;
+                        return ret; 
+                    }
+                    if(token.type == BOP){ current = B_OPERATOR; } else { current = ITEM; }
+                } else {
+                    if(current != ITEM){
+                        print("Syntax error - unexpected . in expression");
+                        ret.valid = false;
+                        return ret;
+                    }
+                    Expression first = expr.top();
+                    Type type = first.type;
+                    TypeInfo& info = type_table.get_info(type);
+                    
+                    Token second = *(it + 1);
+                    bool field_exists = false;
+                    field field_data;
+                    // search through fields
+                    // vector search - inefficient, but ok since most structs have few fields
+                    for(auto& f : info.fields){
+                        if(f.name == second.value){
+                            field_exists = true;
+                            field_data = f;
+                            break;
+                        }
+                    }
+                    if(!field_exists){
+                        print("Error, variable of type", type.to_string(), 
+                            "does not have a field named", second.value);
+                        ret.valid = false; return ret;
+                    }
+                    expr.pop();
+                    Expression ex = Expression{Field_access{first, second}, field_data.type};
+                    expr.push(ex);
+                    it++;
+                    current = ITEM;
+                    goto ignore_checks;
                 }
-                if(token.type == BOP){ current = B_OPERATOR; } else { current = ITEM; }
                 break;
-                }
+            }
             case ASSIGNMENT: case KEYWORD: case CLOSED_BRACKET: case COMMA: case EOL: case END: {
                 ret.end = it;
                 goto exit;
@@ -441,15 +546,45 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                     it = it + 1;
                     goto ignore_checks; 
                 }
+                // array declaration [1, 2, 3]
+                if(prev != ITEM && opening == '['){
+                    
+                    ParseArrayLiteral result = parseArrayLiteral(vars, it);
+                    if(result.valid == false){
+                        print("Error parsing array literal");
+                        ret.valid = false; return ret;
+                    }
+                    Array_literal& al = result.array_literal;
+                    TypeInfo ti;
+                    // name of type is [<subtype>,dim1,dim2,...]
+                    ti.name = string("[");
+                    ti.name += al.element_type.to_string();
+                    for(size_t dim : al.dims){
+                        ti.name += ",";
+                        ti.name += to_string(dim);
+                    }
+                    ti.name += "]";
+                    // calculate size of array = sizeof(type) * length
+                    ti.size = type_table.get_info(al.element_type).size * al.elements.size();
+                    ti.supertype = ARRAY;
+                    ti.fields = vector<field>{field{"size", type_int}};
+                    ti.copyable = type_table.get_info(al.element_type).copyable;
+                    ti.sized = true;
+                    ti.destructor = type_table.get_info(al.element_type).destructor;
+                    Type type = type_table.insert(ti);
+                    Expression ex(result.array_literal, type);
+                    expr.push(ex);
+                    it = result.end - 1;
+
+                    current = ITEM;
+                    break;
+                }
+                
                 // recursively parse expression inside bracket
                 // parse for comma separated expression
                 ParseMulti result = parseMulti(vars, it + 1);
-                // cout << "Size of multi-parse " << result.multi_expr.size() << endl;
-                // cout << "result" << result.valid << endl;
-                // check for validity
                 if(result.valid == false){ ret.valid = false; return ret; }
-                //check bracket is closed
-                
+                //check bracket is closed         
                 char closing = (*result.end).value[0];
                 if(expected != closing){
                     cout << "Error: parenthesis mismatch on line " << token.line << endl;
@@ -462,6 +597,7 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                     if( (it-1)->type != NAME){
                         cout << "Parsing error while parsing OPEN_BRACKET 1" << endl;
                     }
+                    // function call
                     if(opening == '('){
                         Function_call fnc;
                         fnc.name = fnc_name;
@@ -480,6 +616,7 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                         Expression ex(fnc, type_maybe.result);
                         expr.pop();
                         expr.push(ex);
+                    // array indexing operation
                     } else if(opening == '['){
                         Array_index arr;
                         arr.name = fnc_name;
@@ -501,14 +638,26 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
                     } else {
                         cout << "Parsing error while parsing OPEN_BRACKET 2" << endl;
                     }
-                } else {    // must be a bracket or tuple
-                    if(result.multi_expr.size() == 1){
-                        expr.push( result.multi_expr.at(0) );
-                    } else {
-                        cout << "Error - tuples literals not yet supported" << endl;
+                } 
+                // must be a bracket
+                else if(result.multi_expr.size() == 1){
+                    expr.push( result.multi_expr.at(0) );
+                } 
+                // must be a tuple
+                else {
+                    Tuple_literal tl;
+                    tl.elements = result.multi_expr;
+                    vector<Type> types;
+                    types.reserve(tl.elements.size());
+                    for(const auto& e : tl.elements){
+                        types.push_back(e.type);
                     }
+                    Type tuple_type = register_tuple(types, true);
+
+                    Expression ex(tl, tuple_type);
+                    expr.push(ex);
                 }
-                current = ITEM; // in all cases, item
+                current = ITEM; // in all cases, item (bracket, function call, array index, array literal)
                 it = result.end;
                 goto ignore_checks;     // a break causes error in case of function
                 } 
@@ -537,7 +686,6 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
     // empty stack
     while(!operations.empty()){
         Token top = operations.top(); operations.pop();
-        // printToken(top);
         if(top.type == BOP){
             if(expr.size() < 2 ){ ret.valid = false; cout << "2" << endl; return ret; }
             Expression right = expr.top(); expr.pop();
@@ -546,8 +694,7 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
             Option<Type> res = func_table.rtype(top.value, vector<Type>{left.type, right.type});
             if(res.valid == false){ 
                 print("Type error - no operator defined for", left.type, top.value, right.type); 
-                ret.valid = false;
-                return ret;
+                ret.valid = false; return ret;
             }
             Type type = res.result;
 
@@ -557,25 +704,117 @@ ParseSimpleExpr parseSimpleExpr(SymbolTable& vars, Iter it){
             if(expr.size() < 1 ){ ret.valid = false; ret.valid = false; cout << "3" << endl; return ret; }
             Expression only = expr.top(); expr.pop();
             // determine type
-
             Option<Type> res = func_table.rtype(top.value, vector<Type>{only.type});
             if(res.valid == false){ 
                 print("Type error - no operator defined for", top.value, only.type); 
                 ret.valid = false; return ret;
             }
             Type type = res.result;
-
             Expression ex = Expression(Unary_expr(top, only), type);
             expr.push(ex);
         }
     }
 
     if(expr.size() != 1 || operations.size() != 0 || current != ITEM){
+        // print(expr.size(), operations.size(), current == ITEM);
         ret.valid = false;
         print("Error in expression parsing");
     } else {
         ret.expr = expr.top();
     }
+    return ret;
+}
+
+// struct ParseArrayLiteral {
+//     bool valid;
+//     Array_literal array_literal;
+//     Iter end;
+// };
+
+// struct SubArray {
+//     bool valid;
+//     Iter end;
+//     vector<size_t> dims;    // dimensions of subarray (reverse order)
+// };
+
+// assume i is pointing to a square bracket
+ParseArrayLiteral parseArrayLiteral(SymbolTable& vars, Iter it){
+    ParseArrayLiteral ret; ret.valid = true;
+    SubArray result = parseArrayRecurse(vars, it, ret.array_literal.elements);
+    
+    if(result.valid == false){ 
+        print("Error while parsing array literal");
+        ret.valid = false; return ret; 
+    } 
+    ret.end = result.end;
+    
+    // reverse the dims vector
+    // the recursive function determines dimensions in reverse order for efficiency
+    reverse(result.dims.begin(), result.dims.end());
+    ret.array_literal.dims = result.dims;
+    ret.array_literal.element_type = ret.array_literal.elements[0].type;
+    // check each element has same type
+    for(const Expression& e : ret.array_literal.elements){
+        if(e.type != ret.array_literal.element_type){
+            print("Error - array element types are not all the same");
+            ret.valid = false; return ret;
+        }
+    }
+    return ret;
+}
+
+SubArray parseArrayRecurse(SymbolTable& vars, Iter it, vector<Expression>& elements){
+    SubArray ret;
+    ret.valid = true;
+    it++;
+    size_t num_elements = 0;
+    vector<size_t> first_element_dims;
+    while(true){
+        // subarray
+        if(it->value == "["){
+            SubArray sa = parseArrayRecurse(vars, it, elements);
+            if(sa.valid == false){ ret.valid = false; return ret; }
+            // check subarrays are same size
+            if(num_elements == 0){
+                first_element_dims = sa.dims;
+            } else if(sa.dims != first_element_dims){
+                print("Error - subarrays must have the same size");
+                ret.valid = false; return ret;
+            }
+            it = sa.end;
+        // unexpected closing bracket (error)
+        } else if(it->value == "]"){
+            if(num_elements == 0){
+                print("Error: arrays with zero size are not allowed");
+            } else {
+                print("Error: unexpected ] while parsing array");
+            }
+            ret.valid = false; return ret;
+        // normal element - possibly a expression
+        } else {
+            ParseSimpleExpr result = parseSimpleExpr(vars, it);
+            if(result.valid == false){ ret.valid = false; return ret; }
+            elements.push_back(result.expr);
+            if(first_element_dims.size() != 0){
+                print("Error - subarrays must have the same size (2)");
+                ret.valid = false; return ret;
+            }
+            it = result.end;
+        }
+        num_elements++;
+        // the next token should be , or ]
+        if(it->type == COMMA){
+            it++;
+        } else if(it->value == "]"){
+            ret.end = it + 1;
+            break;
+        } else {
+            print("Error: syntax error in declaration of array");
+            ret.valid = false; return ret;
+        }
+    }
+    ret.dims = first_element_dims;
+    ret.dims.push_back(num_elements);
     return ret;
 }
 
@@ -1393,42 +1632,45 @@ Option<StructInfo> parseStruct(const Entity_start& obj){
     while(true){
         if(it->type == EOL){
             it++;
-        } else if(it->type == NAME){
-            Type type;
-            bool user_defined_type;
-            Option<Entity> opt = entity_table.get(it->value);
-            if(opt.valid = false){
-                print("Unrecognized type", it->value, "in struct", obj.name);
-                ret.valid = false; return ret;
-            }
-            Entity& supertype = opt.result;
-            if(supertype == PRIMITIVE_TYPE){
-                type = type_table.get_type(it->value);
-                user_defined_type = false;
-            } else if (supertype == STRUCT) {
-                if(!type_table.contains(it->value)){
-                    print("DEEP ERROR - struct not in type table in parseStruct");
-                    ret.valid = false; return ret;
-                }
-                type = type_table.get_type(it->value);
-                user_defined_type = true;
-                contains_user_defined_type = true;
-            }
-            it++;
-            if(it->type != NAME){
-                print("Error in declaration of struct", obj.name, ", field", it->value, "invalid");
-            }
-            ret.result.elements.push_back(struct_element{type, it->value, user_defined_type});
-            it++;
-            if(it->type != EOL){
-                print("Error while parsing struct", obj.name, ", expected newline or }");
-            }
-        } else if (it->value == "}"){
+            continue;
+        } 
+        if(it->value == "}"){
             break;
-        } else {
-            print("Error while parsing struct", obj.name);
+        }
+        ParseTypeOption result = parseIncompleteType(it);
+        if(result.valid == false){
+            print("Error parsing struct", obj.name, "- expected type. Line:");
+            printErrorLine(it);
             ret.valid = false; return ret;
         }
+
+        Type type = result.type;
+        bool user_defined_type;
+        TypeInfo& t_info = type_table.get_info(type);
+
+        print(toString(t_info.supertype));
+        if(t_info.supertype == PRIMITIVE_TYPE){
+            user_defined_type = false;
+        } else if(t_info.supertype == STRUCT){
+            user_defined_type = true;
+            contains_user_defined_type = true;
+        } else if(t_info.supertype == TUPLE){
+            user_defined_type = true;
+            contains_user_defined_type = true;
+        } else {
+            print("Error - array type not supported in struct (yet!)");
+            ret.valid = false; return ret;
+        }
+        it = result.end;
+        if(it->type != NAME){
+            print("Error in declaration of struct", obj.name, ", field", it->value, "invalid");
+        }
+        ret.result.elements.push_back(struct_element{type, type.to_string(), user_defined_type});
+        it++;
+        if(it->type != EOL){
+            print("Error while parsing struct", obj.name, ", expected newline or }");
+        }
+        it++;
     }
     
     ret.result.fully_defined_type = !contains_user_defined_type;
@@ -1438,10 +1680,9 @@ Option<StructInfo> parseStruct(const Entity_start& obj){
 // recursive helper function to construct declaration order
 // base case: if struct is fully defined, and 
 // if struct not reached, check each element of the 
-bool recurse_helper(const Type& struct_type, vector<Type>& decl_order){
+bool recurse_helper(const Type& struct_type){
     print("Parsing", struct_type);
     StructInfo& data = struct_table.at(struct_type);
-
     // check if struct has already been visited
     if(data.flag_for_algo == true){
         if(data.fully_defined_type){
@@ -1459,8 +1700,9 @@ bool recurse_helper(const Type& struct_type, vector<Type>& decl_order){
     }
     // recursive step - continue for structs that are fields
     for(struct_element& e: data.elements){
-        if(type_table.get_info(e.type).supertype == STRUCT){
-            bool valid = recurse_helper(e.type, decl_order);
+        Entity supertype = type_table.get_info(e.type).supertype;
+        if(supertype != PRIMITIVE_TYPE){
+            bool valid = recurse_helper(e.type);
             if(!valid){
                 print("Error, cyclic definition in struct", struct_type);
                 return false;
@@ -1479,37 +1721,64 @@ bool recurse_helper(const Type& struct_type, vector<Type>& decl_order){
 // step 3 - update the metadata in the type table with sizes, etc.
 
 // any unfamiliar types, flag as unfamiliar
-Option<vector<Type>> parseStructs(vector<Entity_start>& list){
-    Option<vector<Type>> ret(true);
+// vector<Type> decl_order - declaration order of structs
+// vector<Entity_start> list - list of structs in initial program
+// struct_table - hashmap of type -> StructInfo - list of structs in program
+bool parseStructs(const vector<Entity_start>& list){
 
     // step 1 - for each struct, parse, add to struct table
     for(const Entity_start& entity : list){
         Option<StructInfo> opt = parseStruct(entity);
         if(opt.valid == false){
             print("Error parsing struct", entity.name);
-            ret.valid = false; return false;
+            return false;
         }
         struct_table.insert({entity.name, opt.result});
     }
     
-    // step 3 - iterate through structs, construct declaration order
+    // step 2 - iterate through structs, construct declaration order
     // this requires a recursive helper function
-    vector<Type>& decl_order = ret.result;
-    decl_order.reserve(list.size());
-    for(const Entity_start& entity : list){
+    decl_order.reserve(struct_table.size());
+    // decl_order.reserve(list.size());
+    print("struct_table");
+    for(auto i : struct_table){
+        print(i.first);
+    }
+    print("tuple_table");
+    for(auto i : tuple_table){
+        for(auto j : i.second.elements)
+            print_raw(j.to_string(), ", ");
+        print("\n");
+    }
+    for(const pair<Type, StructInfo>& struct_pair : struct_table){
         // helper determines if type is concrete - if a type is not concrete, return false
-        // while doing so, construct the decl_order
-        bool valid = recurse_helper(entity.name, decl_order);
+        // while doing so, construct the declaration order
+        bool valid = recurse_helper(struct_pair.first);
         if(!valid){
             print("Error, cycle detected in struct definitions");
-            ret.valid = false; return false;
+            return false;
         }
     }
-    // step 4 - update metadata
-    for(Type name : ret.result){
+    print("struct_table");
+    for(auto i : struct_table){
+        print(i.first);
+    }
+    print("tuple_table");
+    for(auto i : tuple_table){
+        for(auto j : i.second.elements)
+            print_raw(j.to_string(), ", ");
+        print("\n");
+    }
+    // step 3 - update metadata
+    for(Type name : decl_order){
         TypeInfo& data = type_table.get_info(name);
+        print("hi4");
         StructInfo& info = struct_table.at(name);
+        print("bye4");
         data.copyable = true;
+        for(struct_element& x : info.elements){
+            data.copyable = data.copyable && type_table.get_info(x.type).copyable;
+        }
         data.destructor = false;
         data.sized = true;
         for(struct_element& x : info.elements){
@@ -1520,10 +1789,10 @@ Option<vector<Type>> parseStructs(vector<Entity_start>& list){
             data.fields.push_back(field{x.field, x.type}); 
         }
     }
-    return ret;
+    return true;
 }
 
-void printStructs(vector<Type>& decl_order){
+void printStructs(){
     for(Type i : decl_order){
         if(struct_table.count(i) != 1){
             print("Error - struct", i, "not in type table");
@@ -1624,7 +1893,7 @@ ParseProgram parseProgram(Iter start){
                 ret.valid = false; return ret;
             }
             // add the struct to the type table
-            Type type = type_table.insert(TypeInfo{name->value, 0, STRUCT, vector<field>{}, false, false, false});
+            Type type = type_table.insert(TypeInfo{name->value, "", 0, STRUCT, vector<field>{}, false, false, false});
             
             // save name of struct, iterator to beginning of block
             struct_list.push_back({type, startOfBlock});
@@ -1643,13 +1912,12 @@ ParseProgram parseProgram(Iter start){
     }
     // func_table.printAll();
     // finish parsing structs, enums, global scope, etc
-    Option<vector<Type>> opt = parseStructs(struct_list);
-    if(opt.valid == false){
+    bool opt = parseStructs(struct_list);
+    if(opt == false){
         print("Error while parsing structs");
         ret.valid = false; return ret;
     }
-    printStructs(opt.result);
-    ret.result.decl_order = opt.result;
+    printStructs();
 
     // complete parsing of functions
     // start with main

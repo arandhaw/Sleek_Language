@@ -17,7 +17,7 @@ using namespace std;
 struct Type {
     size_t type_id; // unique identifier for every concrete type
     string to_string() const;   // get string from type_table
-
+    string cname() const;       // get the name for codegeneration
     // implement == and !=
     bool operator==(const Type& other) const {
         return type_id == other.type_id;
@@ -135,10 +135,12 @@ enum Entity {
     ENUM, 
     VARIANT,
     PRIMITIVE_TYPE,
+    ARRAY, 
+    TUPLE
 };
 
 string EntityNames[] = {"undefined", "function", "struct", 
-        "enum", "variant", "primitive_type"};
+        "enum", "variant", "primitive_type", "array", "tuple"};
 int EntityNamesLength = sizeof(EntityNames)/sizeof(string);
 
 string toString(Entity x){
@@ -169,24 +171,27 @@ class EntityTable {
         }
 } entity_table;
 
-struct Type_ast;
+// struct Type_ast;
 
-struct Named_type {
-};
+// struct Named_type {
+// };
 
 struct Tuple_type {
-    vector<Type_ast> elements;
+    vector<Type> elements;
 };
 
 struct Array_type {
     size_t array_size;
     vector<size_t> shape;
-    Type_ast *type_ptr;
+    Type type;
 };
 
-struct Type_ast {
-    variant<Named_type, Tuple_type, Array_type> info;
-};
+
+
+// struct Type_ast {
+//     string name;
+//     variant<Named_type, Tuple_type, Array_type> info;
+// };
 
 struct field {
     string name;
@@ -195,6 +200,7 @@ struct field {
 
 struct TypeInfo {
     string name;
+    string cname;
     size_t size;    // in bytes
     Entity supertype;
     vector<field> fields;
@@ -211,13 +217,20 @@ class TypeTable {
         unordered_map<size_t, TypeInfo> table;
         unordered_map<string, size_t> str_to_typeid;
     public:
+        void printAll(){
+            for(auto &i : table){
+                print("Name:", i.second.name);
+                print("ID:", i.first);
+                print("Supertype:", toString(i.second.supertype), "\n");
+            }
+        }
         bool contains(string type_str){
             return str_to_typeid.count(type_str);
         }
         bool contains(Type t){
             return table.count(t.type_id);
         }
-
+        // insert type - if already exists, returns existing type id
         Type insert(const TypeInfo& ti){
             // already exists in type table
             if(str_to_typeid.count(ti.name) == 1){
@@ -251,18 +264,17 @@ string Type::to_string() const {
     return type_table.get_string(*this);
 }
 
-/// For struct table
-struct struct_element {
-    Type type;
-    string field;
-    // a type that contains no user defined types is concrete
-    bool user_defined_type;
-};
-
-struct StructInfo {
-    vector<struct_element> elements;
-    bool flag_for_algo;
-    bool fully_defined_type;
-};
-// this will be used in struct_table
+// if not specified, cname is the $ + the types name
+// otherwise, its the specified name
+string Type::cname() const {
+    if(!type_table.contains(*this)){
+        return "UNKNOWN-TYPE";
+    }
+    TypeInfo& info = type_table.get_info(*this);
+    if(info.cname == ""){
+        return string("$") + info.name;
+    } else {
+        return info.cname;
+    }
+}
 

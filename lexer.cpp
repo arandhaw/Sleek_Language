@@ -250,10 +250,10 @@ namespace lexer_internals {
             ret.length = 1;
             return ret;
         }
-        if(str[i + 1] == '{'){
+        if(str[i + 1] == '('){
             length = 3;
             while(i + length < str.size()){
-                if(str[i + length - 1] == '}' && str[i + length] == '#'){
+                if(str[i + length - 1] == ')' && str[i + length] == '#'){
                     length++;
                     break;
                 }
@@ -267,7 +267,6 @@ namespace lexer_internals {
             while(i + length < str.size()){
                 char d = str[i + length];
                 if(d == '\n'){
-                    length++;
                     break;
                 }
                 length++;

@@ -19,7 +19,7 @@ unordered_map<string, string> operator_fname =
 void Codegen::genProgram(const Program& program){
     out("#include \"builtins.cpp\"");
     raw("\n");
-    declareStructs(program.decl_order);
+    declareStructs(decl_order);
     raw("\n");
     declareFunctions(program.functions);
     raw('\n');
@@ -41,12 +41,22 @@ void Codegen::declareStructs(const vector<Type>& decl_order){
             indent();
             for(auto& field: ti.fields){
                 tab(); 
-                raw("$", field.type, " ", field.name, ";\n");
+                raw(field.type.cname(), " ", field.name, ";\n");
             }
             dindent();
             line("};");
-        } else {
-            line("Only structs are being generated right now");
+        } else if(ti.supertype == TUPLE){
+            raw("struct ", ti.cname, " {\n");
+            indent();
+            for(auto& field: ti.fields){
+                tab(); 
+                raw(field.type.cname(), " e", field.name, ";\n");
+            }
+            dindent();
+            line("};");
+        } 
+        else {
+            line("Oh dear, unexpected error in codegen");
         }
     }
 }
@@ -105,8 +115,8 @@ void Codegen::genCodeblock(const Codeblock& cb){
             DeclVars& x = get<DeclVars>(i); 
             for(Token& tok : x.variables){
                 const string& name = tok.value;
-                const string& type = cb.vars.table.at(name).type.to_string();
-                raw('$', type, ' ', name, ';', ' ');
+                const string& type = cb.vars.table.at(name).type.cname();
+                raw(type, ' ', name, ';', ' ');
             }
             raw("\n");
         } else if(holds_alternative<DeleteVars>(i)){
@@ -169,7 +179,7 @@ void Codegen::genBasicLine(int line_num, const Basic_Line& line, const SymbolTab
             string name = x.name.value;
             const VarInfo& info = vars.table.at(name);
             if(info.decl == line_num){
-                raw('$', info.type.to_string(), ' ', x.name.value);
+                raw(info.type.cname(), ' ', x.name.value);
             } else {
                 raw(x.name.value);
             }
@@ -259,11 +269,19 @@ void Codegen::genExpression(const Expression& e){
     }
     else if(holds_alternative<Field_access>(expr)){
         Field_access& fa = get<Field_access>(expr);
-        raw("(");
-        genExpression(*fa.object);
-        raw(".");
-        raw(fa.field.value);
-        raw(")");
+        if(type_table.get_info((*fa.object).type).supertype != TUPLE){
+            raw("(");
+            genExpression(*fa.object);
+            raw(".");
+            raw(fa.field.value);
+            raw(")");
+        } else {
+            raw("(");
+            genExpression(*fa.object);
+            raw(".e");
+            raw(fa.field.value);
+            raw(")");
+        }
     } 
     else if(holds_alternative<Struct_init>(expr)){
         Struct_init& si = get<Struct_init>(expr);
@@ -271,6 +289,18 @@ void Codegen::genExpression(const Expression& e){
         
         auto last = si.args.end() - 1;
         for(auto it = si.args.begin(); it != si.args.end(); it++){
+            genExpression(*it);
+            if(it != last){
+                raw(", ");
+            }
+        }
+        raw("}");
+    } else if(holds_alternative<Tuple_literal>(expr)){
+        Tuple_literal t = get<Tuple_literal>(expr);
+        raw(e.type.cname()); raw("{"); 
+        
+        auto last = t.elements.end() - 1;
+        for(auto it = t.elements.begin(); it != t.elements.end(); it++){
             genExpression(*it);
             if(it != last){
                 raw(", ");

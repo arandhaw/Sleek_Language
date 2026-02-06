@@ -17,6 +17,9 @@ After creation, a variable has the same type forever.
 The program won't compile if an existing variable is assigned a different type
 x = 1.0      # error: x is an int, can't assign a float to int
 
+Expressions:
+Expressions can contain binary expressions, unary expressions, function calls, literals, etc
+
 Comments: 
 # this is a comment
 #( this is a multi-line comment )#
@@ -79,6 +82,3 @@ if <condition> {
 } else {
     ...
 }
-
-Expressions:
-Expressions can contain binary expressions, unary expressions, function calls, literals, etc

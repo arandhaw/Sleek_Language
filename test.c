@@ -5,10 +5,13 @@ struct greet {
     int y;
 };
 
+#define MY_MACRO 10
+
 int main(){
-    struct greet x = {3, 5};
-    
+    struct greet name = {3, 5};
+    const int x = 10;
+    int arr[x];
     printf("hello world");
-    fprintf(stderr, "Urk!\n");
-    return 1;
+    // fprintf(stderr, "Urk!\n");
+    return 0;
 }

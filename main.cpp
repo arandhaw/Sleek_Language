@@ -123,15 +123,15 @@ void init_entity_table(){
 // initialize built-in types
 void init_type_table(){
     // name, size (bytes), supertype, copyable, sized, destructor
-    type_none = type_table.insert( TypeInfo{"none", sizeof($none), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
+    type_none = type_table.insert( TypeInfo{"none", "", sizeof($none), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
     vector<field> Int_fields = {field{"MAX", type_int}, field{"MIN", type_int}};
-    type_int = type_table.insert( TypeInfo{"int", sizeof($int), PRIMITIVE_TYPE, Int_fields, true, true, false} );
-    type_float = type_table.insert( TypeInfo{"float", sizeof($float), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
-    type_byte = type_table.insert( TypeInfo{"byte", sizeof($byte), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
-    type_bool = type_table.insert( TypeInfo{"bool", sizeof($bool), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
-    type_char = type_table.insert( TypeInfo{"char", sizeof($char), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
-    type_function = type_table.insert( TypeInfo{"Function", 2*sizeof(int*), PRIMITIVE_TYPE, vector<field>{}, true, true, true} );
-    type_string = type_table.insert(TypeInfo{"string", sizeof($string), PRIMITIVE_TYPE, vector<field>{}, false, true, false});
+    type_int = type_table.insert( TypeInfo{"int", "", sizeof($int), PRIMITIVE_TYPE, Int_fields, true, true, false} );
+    type_float = type_table.insert( TypeInfo{"float", "", sizeof($float), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
+    type_byte = type_table.insert( TypeInfo{"byte", "", sizeof($byte), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
+    type_bool = type_table.insert( TypeInfo{"bool", "", sizeof($bool), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
+    type_char = type_table.insert( TypeInfo{"char", "", sizeof($char), PRIMITIVE_TYPE, vector<field>{}, true, true, false} );
+    type_function = type_table.insert( TypeInfo{"Function", "", 2*sizeof(int*), PRIMITIVE_TYPE, vector<field>{}, true, true, true} );
+    type_string = type_table.insert(TypeInfo{"string", "", sizeof($string), PRIMITIVE_TYPE, vector<field>{}, false, true, false});
 }
 
 void startup(){
