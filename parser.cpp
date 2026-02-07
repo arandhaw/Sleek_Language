@@ -206,6 +206,96 @@ ParseTypeOption parseIncompleteType(Iter start){
     return ret;
 }
 
+ParseTypeOption parseType(Iter start){
+    ParseTypeOption ret;
+    ret.valid = true;
+    Iter it = start;
+    if(it->type == NAME){
+        if(type_table.contains(it->value)){
+            ret.type = type_table.get_type(it->value);
+            ret.end = it+1;
+        } else {
+            print("Error: type", it->value, "does not exist");
+            ret.valid = false; return ret;
+        }
+    } else if(it->type == OPEN_BRACKET && it->value == "("){
+        
+        vector<Type> elements;
+        if((it+1)->value == ")"){
+            print("Error: () is not a valid type");
+            ret.valid = false; return ret;
+        }
+        it++;
+        for(int i = 0; ; i++){
+            ParseTypeOption result = parseType(it);
+            if(result.valid == false){ ret.valid = false; return ret; }
+
+            // add element to structInfo
+            elements.push_back(result.type);
+            
+            it = result.end;
+            if(it->type == COMMA){
+                it++;
+                // (type,) is syntax for tuple with 1 element
+                if(elements.size() == 1){ 
+                    if(it->type == CLOSED_BRACKET && it->value == ")"){
+                        break;
+                    }
+                }
+            } else if(it->value == ")"){
+                it++;
+                break;
+            }
+        }
+        // insert into type table, tuple table
+        Type type = register_tuple(elements, true);
+        // insert into the struct table
+        ret.type = type;
+        ret.end = it;
+    } else if(it->type == OPEN_BRACKET && it->value == "["){
+        Array_type x;
+        string name = "[";
+        ParseTypeOption result = parseType(it + 1);
+        if(result.valid == false){ ret.valid = false; return ret; }
+
+        x.type = result.type;
+        name.append(result.type.to_string());
+        name.append(",");
+        it++;
+        if(it->type != COMMA){
+            print("Invalid type, missing comma");
+            ret.valid = false; return ret;
+        }
+        it++;
+        x.array_size = 1;
+        while(true){
+            if(it->type != INT_LITERAL){
+                print("Error, expected size in array declaration");
+                ret.valid = false; return ret;
+            }
+            name.append(it->value);
+            size_t dimension_size = stoi(it->value);
+            x.array_size *= dimension_size;
+            it++;
+            if(it->type == COMMA){
+                name.append(",");
+                continue;
+            } else if(it->value == "]"){
+                name.append("]");
+                it++;
+                ret.end = it;
+                break;
+            } else {
+                print("Error while parsing array type");
+                ret.valid = false; return ret;
+            }
+        }
+    } else {
+        print("Invalid type signature");
+        ret.valid = false; return ret;
+    }
+    return ret;
+}
 ///////////////////////////////////
 ///////////////////////////////////
 struct ParseMulti {
@@ -890,6 +980,59 @@ ParseBasicLine parseBasicLine(SymbolTable& vars, int line, Iter it){
         else if(second.end->value == "}"){ ret.end = second.end; }
         else { cout << "Invalid token at end of expression" << endl; ret.valid = false; }
         return ret;
+    } else if(it->type == NAME && (it+1)->value == ":"){
+        // var name
+        Var_status vs = vars.getStatus(it->value);
+        if(vs != MISSING){
+            print("Error - variable", it->value, "already exists, you can't redeclare its type");
+            ret.valid = false; return ret;
+        }
+        Iter var_name = it;
+        // var type
+        ParseTypeOption type_option = parseType(it+2);
+        if(type_option.valid = false){
+            print("Error - type signature invalid");
+            ret.valid = false; return ret;
+        } 
+        it = type_option.end;
+        Iter op_iter = it;
+        Type type = type_option.type;
+        if(it->value != "="){
+            print("Error in variable assignment - expected = after type signature");
+            ret.valid = false; return ret;
+        }
+        // parse right side of expr
+        ParseSimpleExpr second = parseSimpleExpr(vars, it+1);
+        if(second.valid == false){
+            cout << "Invalid expression in parseBasicLine" << endl;
+            ret.valid = false;
+            return ret;
+        }
+        
+        if(second.expr.type != type){
+            print("Error in assignment, type does not match signature");
+            print("Left side type:", type, " --- Right side type:", second.expr.type);
+            ret.valid = false; return ret;
+        }
+
+        if(HAS<Variable>(second.expr.expr) && type_table.get_info(second.expr.type).copyable == false ){
+            // variable has been moved - destroy it!
+            vars.destroy(second.start->value, line);
+        }
+        
+        // Assignment a = {first.expr, second.expr, op};
+        int result = vars.assign(var_name->value, line, second.expr.type);
+        if(result != 0){
+            cout << "Error in assignment operation" << endl;
+            ret.valid = false; return ret;
+        } 
+        Expression single = {Variable{*var_name}, second.expr.type};
+        Assignment a{single, second.expr, *op_iter};
+        ret.line = a;
+        if(second.end->type == EOL){ ret.end = second.end + 1; }
+        else if(second.end->value == "}"){ ret.end = second.end; }
+        else { cout << "Invalid token at end of expression" << endl; ret.valid = false; }
+        return ret;
     }
     // expression or left-side of assignment
     ParseSimpleExpr first = parseSimpleExpr(vars, it);
@@ -1469,6 +1612,7 @@ CodeBlockOption parseCodeBlock(Iter start, const ScopeInfo& info) {
     return ret;
 }
 
+// given an iterator, print the rest of the line (until EOL) along with line number
 void printErrorLine(Iter it){
     cout << "Error occured on line " << (*it).line << ":" << endl;
     cout << endl;
@@ -1486,6 +1630,7 @@ struct ParseFunction {
 };
 
 // end is the '{' of the function
+// start is name of function (after func keyword)
 ParseFunction parseFunctionSignature(Iter start){
     
     ParseFunction ret;
@@ -1503,50 +1648,56 @@ ParseFunction parseFunctionSignature(Iter start){
         ret.valid = false; return ret;
     }
     index++;
-    while(index->value != ")"){
-        if(index->type != NAME || (index + 1)->type != NAME){
-            print("Invalid function declaration (3)"); 
+    if(index->value == ")"){
+        index++;
+        goto exit;
+    }
+    while(true){
+        ParseTypeOption result = parseType(index);
+        if(result.valid == false){
+            print("Invalid function declaration (3) - invalid type parameter"); 
             ret.valid = false; return ret;
-        } else {
-            // push type and parameter names
-            if(!type_table.contains(index->value)){
-                print("Invalid type in function declaration");
-            } 
-            Type t = type_table.get_type(index->value);
-            ret.result.param_types.push_back(t);
-            ret.result.param_names.push_back((index + 1)->value);
+        } 
+        if((result.end)->type != NAME){
+            print("Invalid function declaration (3) - no parameter name");
         }
-        if((index + 2)->type == COMMA){
-            index += 3;
-        } else if((index + 2)->value == ")"){
-            index = index + 2;
+        // push type and parameter names
+        Type t = result.type;
+        ret.result.param_types.push_back(t);
+        ret.result.param_names.push_back((result.end)->value);
+        
+        if((result.end + 1)->type == COMMA){
+            index = result.end + 2;
+        } else if((result.end + 1)->value == ")"){
+            index = result.end + 2;
             break; 
         } else {
-            cout << "Invalid function declaration (4)" << endl; 
+            cout << "Invalid function declaration (4) - expected comma or closing bracket" << endl; 
             ret.valid = false; return ret; 
         }
     }
-    index++;
+    exit:
+
     if(index->value != "->"){
         ret.result.return_type = type_none;
     } else {
         index++;
         // modify for tuples/variants later
-        if(index->type != NAME){
-            print("Invalid function declaration (6)"); 
+        auto result = parseType(index);
+        if(result.valid = false){
+            print("Invalid function declaration (6) - invalid return type"); 
             ret.valid = false; return ret;
-        } 
-        if(!type_table.contains(index->value)){
-            print("Return type of function is not valid:", index->value);
         }
-        ret.result.return_type = type_table.get_type(index->value);
-        index++;
+        index = result.end;
+        ret.result.return_type = result.type;
     }
+    
     if(index->value == "{"){
     } else if(index->value == "\n" && (index + 1)->value == "}"){
         index += 1;
     } else {
-        cout << "Invalid function declaration (7)" << endl; 
+        print("Invalid function declaration (7) - expected opening bracket {");
+        print(index->value);
         ret.valid = false; return ret;
     }
     ret.result.code_start = index + 1;
@@ -1573,6 +1724,7 @@ ParseFunction parseFunctionBody(Iter start, Function f){
         ret.valid = false; 
     } else if(result.codeblock.vars.hasReturn == false && ret.result.return_type != type_none){
         print("Error, function", ret.result.name, "missing return");
+        ret.valid = false; return ret;
     } else {
         ret.result.code = result.codeblock;
         cout << result.codeblock.vars.table.size() << endl;
@@ -1818,6 +1970,11 @@ void printStructs(){
 //     Iter start;
 // };
 
+struct Function_start {
+    Iter start;
+    Iter name;
+};
+
 // top level parsing function
 ParseProgram parseProgram(Iter start){
     // func_table.printAll();
@@ -1825,6 +1982,7 @@ ParseProgram parseProgram(Iter start){
     ParseProgram ret;
     ret.valid = true;
     vector<Entity_start> struct_list;
+    vector<Function_start> function_list;
     // vector<Entity_start> enum_list;
 
     for(Iter it = start; it != tokens.end(); it++){
@@ -1832,50 +1990,48 @@ ParseProgram parseProgram(Iter start){
         if(t.type == EOL){ 
             continue; 
         } else if(t.value == "func"){
-            ParseFunction result = parseFunctionSignature(it + 1);
-            if(result.valid == false){
-                print("Parsing error in function", (it + 1)->value);
-                ret.valid = false; return ret;
-            }
-            if(result.result.name == "main"){
-                if(foundMainFunction){
+            Function_start fs{it, it+1};
+            function_list.push_back(fs);
+            if(fs.name->value == "main"){
+                if(foundMainFunction == true){
                     print("Error - main function defined multiple times");
                     ret.valid = false; return ret;
                 }
-                if(!(result.result.param_names.size() == 0 && result.result.return_type == type_none)){
-                    print("Error - main function signature must have no parameters and return none");
-                    ret.valid = false; return ret;
-                }
                 foundMainFunction = true;
-                ret.result.main = result.result;
-            } else {
-                // check if function already defined
-                if(ret.result.functions.count(result.result.name) != 0){
-                    cout << "Function defined twice: " << result.result.name << endl;
-                    ret.valid = false; return ret;
-                }
-                // add signature to function table
-                Function &f = result.result;
-                ret.result.functions.insert({f.name, f});
-                func_table.add(Signature{f.name, f.param_types, f.return_type}, '$' + f.name);
-                // add function to entity table
-                bool success = entity_table.add(f.name, FUNCTION);
-                if(!success){
-                    Entity x = entity_table.get(f.name);
-                    if(x != FUNCTION){
-                        print("Error, function", f.name, "has same name as", toString(x), f.name);
-                    }
-                }
             }
-            // verify that the brackets are correct
-            string entity_name = "function " + result.result.name;
-            Option<Iter> result2 = endOfBlock(result.end, entity_name); 
-            if(result2.valid == false){
-                print("Bracket mismatch in", entity_name);
+            if((it+1)->type != NAME && (it+2)->value != "("){
+                print("Error - invalid function declaration");
+                printErrorLine(it);
                 ret.valid = false; return ret;
             }
-            it = result2.result; // move up the iterator
-        
+            Option<Iter> result = endOfBlock(it+2, fs.name->value);
+            if(result.valid == false){
+                print("Error - invalid function declaration");
+                printErrorLine(it);
+                ret.valid = false; return ret;
+            }
+            it = result.result;
+            Iter start_of_codeblock;
+            while(true){
+                if(it->value == "{"){
+                    start_of_codeblock = it;
+                    break;
+                } else if(it->type == EOL && (it+1)->value == "{"){
+                    start_of_codeblock = it+1;
+                    break;
+                } else if(it->type == EOL && (it+1)->value != "{"){
+                    print("Error - invalid function declaration, expected {");
+                    ret.valid = false; return ret;
+                } else {
+                    it++;
+                }
+            }
+            Option<Iter> result2 = endOfBlock(start_of_codeblock, fs.name->value);
+            if(result2.valid == false){
+                print("Error while parsing function - bracket mismatch");
+                ret.valid = false; return ret;
+            }
+            it = result2.result;
         // initial parsing for structs
         } else if(t.value == "struct"){
             if((it+1)->type != NAME && (it+2)->value != "{"){
@@ -1910,7 +2066,7 @@ ParseProgram parseProgram(Iter start){
             ret.valid = false; return ret;
         }
     }
-    // func_table.printAll();
+
     // finish parsing structs, enums, global scope, etc
     bool opt = parseStructs(struct_list);
     if(opt == false){
@@ -1919,6 +2075,46 @@ ParseProgram parseProgram(Iter start){
     }
     printStructs();
 
+    //// parse the functions
+    if(foundMainFunction == false){
+        print("Error - no main function found in program");
+        print("Signature should look like this: func main(){ ... }");
+        ret.valid = false; return ret;
+    }
+    for(const Function_start i : function_list){
+        Iter it = i.start;
+        ParseFunction result = parseFunctionSignature(i.start + 1);
+        if(result.valid == false){
+            print("Parsing error in function", (it + 1)->value);
+            ret.valid = false; return ret;
+        }
+        if(i.name->value == "main"){
+            if(!(result.result.param_names.size() == 0 && result.result.return_type == type_none)){
+                print("Error - main function signature must have no parameters and return none");
+                ret.valid = false; return ret;
+            }
+            ret.result.main = result.result;
+        } else {
+            // check if function already defined
+            if(ret.result.functions.count(result.result.name) != 0){
+                cout << "Function defined twice: " << result.result.name << endl;
+                ret.valid = false; return ret;
+            }
+            // add signature to function table
+            Function &f = result.result;
+            ret.result.functions.insert({f.name, f});
+            func_table.add(Signature{f.name, f.param_types, f.return_type}, '$' + f.name);
+            // add function to entity table
+            bool success = entity_table.add(f.name, FUNCTION);
+            if(!success){
+                Entity x = entity_table.get(f.name);
+                if(x != FUNCTION){
+                    print("Error, function", f.name, "has same name as", toString(x), f.name);
+                }
+            }
+        }
+    }
+    func_table.printAll();
     // complete parsing of functions
     // start with main
     ParseFunction result = parseFunctionBody(ret.result.main.code_start, ret.result.main);

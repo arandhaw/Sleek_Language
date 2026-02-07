@@ -29,11 +29,22 @@ struct $t_$int_$int$ {
   $int e0;
   $int e1;
 };
+struct $t_$int_$string$ {
+  $int e0;
+  $string e1;
+};
 
+
+$(int,int) example($int $x, $(int,int) $y, $D $z);
 
 int main(){
-  $t_$int_$int$ x = $t_$int_$int${$int{3}, $int{4}};
-  $int y = (x.e0);
+  $int x = $int{5};
+  $float y = $float{3.0};
+  $t_$int_$string$ z = $t_$int_$string${$int{3}, $string{"abcd", 4}};
   return 0;
+}
+
+
+$(int,int) $example($int x, $(int,int) y, $D z){
 }
 

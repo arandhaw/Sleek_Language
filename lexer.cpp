@@ -86,6 +86,7 @@ enum tokenType{
     STRING_LITERAL,         //starts with <modifier>"
     SLICE_LITERAL,          // two or three numbers
     UNDERLINE,
+    COLON
 };
 
 string getType(tokenType val){
@@ -124,6 +125,8 @@ string getType(tokenType val){
         case 15: ret = "SLICE";
         break;
         case 16: ret = "UNDERLINE";
+        break;
+        case 17: ret = "COLON";
         break;
         default: ret = "INVALID";
         break;
@@ -387,6 +390,10 @@ LexerOutput lexer(std::string& input_string){
             token.length = 1;
             col = 0;
             token.value = ";";
+        } else if(c == ':'){
+            token.type = COLON;
+            token.value = ":";
+            token.length = 1;
         } 
         // comma
         // any newlines after the last comma on a line are ignored

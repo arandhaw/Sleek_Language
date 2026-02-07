@@ -18,12 +18,18 @@ struct D {
     (int, (A, C)) y
 }
 
+
 # hi
 func main(){ 
-    x = (3, 4)
-    y = x.0
+    x : int = 5
+    y : float = 3.0
+    z : (int, string) = (3, "abcd")
 }
 
+# hi
+func example(int x, (int,int) y, D z) -> (int, int){ 
+    print(x)
+}
 
 
 
