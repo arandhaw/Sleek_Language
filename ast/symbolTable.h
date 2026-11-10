@@ -1,11 +1,13 @@
 #pragma once
 
+#include "../utils.cpp"
+
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <functional> // for std::hash
 
-#include "utils.cpp"
+
 
 using namespace std;
 
@@ -136,7 +138,7 @@ enum Entity {
     VARIANT,
     PRIMITIVE_TYPE,
     ARRAY, 
-    TUPLE
+    TUPLE,
 };
 
 string EntityNames[] = {"undefined", "function", "struct", 
@@ -208,6 +210,13 @@ struct TypeInfo {
     bool copyable;
     bool sized;
     bool destructor;
+    bool pre_defined = false;
+    // TypeInfo(string name, string cname, size_t size, Entity supertype, vector<field> fields, 
+    //     bool copyable, bool sized, bool destructor) : 
+    //     name(name), cname(cname), size(size), supertype(supertype), fields(fields), 
+    //     copyable(copyable), sized(sized), destructor(destructor){
+    //         pre_defined = false;
+    //     }
 };
 
 // check if 
@@ -220,6 +229,7 @@ class TypeTable {
         void printAll(){
             for(auto &i : table){
                 print("Name:", i.second.name);
+                print("C-Name:", i.second.cname);
                 print("ID:", i.first);
                 print("Supertype:", toString(i.second.supertype), "\n");
             }

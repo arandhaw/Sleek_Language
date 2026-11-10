@@ -1,12 +1,11 @@
-// Online C++ compiler to run C++ program online
-#include <iostream>
 #include "utils.cpp"
+#include "builtins/arrays.cpp"
+
+#include <iostream>
 using namespace std;
 
-#include <iostream>
-#include <csignal>
-#include <cstdlib>
-
+// #include <csignal>
+// #include <cstdlib>
 // void signalHandler(int signal) {
 //     std::cerr << "Error: Segmentation fault (SIGSEGV) occurred!" << endl;
 //     exit(1);  // Exit the program with a non-zero status
@@ -24,22 +23,21 @@ using namespace std;
 
 #include <array>
 
-void printMode(const $string& x){
-    if(x.tag == $string::Tag::heap_str){
-        cout << "heap string" << endl;
-    } else {
-        cout << "const string" << endl;
+template<typename T, size_t N>
+std::array<T,N> add(std::array<T,N> x, std::array<T,N> y){
+    std::array<T,N> ret;
+    for(int i = 0; i < N; i++){
+        ret[i] = x[i] + y[i];
     }
+    return ret;
 }
 
 int main() {
     // Write C++ code here
-    $string y("my name is francisco montoya. You killed my father. Prepare to die", 30);
-    y.print();
-    printMode(y);
-    y.set(0, 'M');
-    y.print();
-    printMode(y);
-
+    $array2D<int, 3, 2> myArr{1, 2, 3, 4, 5, 6};
+    print(myArr.get(0, 0));
+    print(myArr.get(1, 0));
+    print(myArr.get(2, 0));
+    print(myArr.get(2, 1));
     return 0;
 }

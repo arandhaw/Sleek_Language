@@ -1,5 +1,3 @@
-
-
 #( this is my programming language )#
 
 fn main(){

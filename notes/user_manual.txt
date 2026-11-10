@@ -1,15 +1,40 @@
 This is a quick guide to sleek syntax. 
 
+Comments: 
+# this is a comment
+#( this is a multi-line comment )#
+
+# sleek is case sensitive
+# sleek ignores whitespace, except for enter \n which implies the end of a line
+
+# Everything starts from the main function
+func main(){
+    <statement 1>  # enter imples end of statement 
+    <statement 2>; # semicolon ends statement - optional
+    <statement 3>; <statement 4>; <statement 5>;   # multiple statements on the same line using semicolon
+}
+
+# other functions can be defined
+# order of definitions in the global space doesn't matter
+func my_name(<type> <input>, <type> <input>) -> <output type> { ... }
+
+# if output type is none, specifying return type is optional
+# these two are equivalent
+func my_name(...) -> none {}
+func my_name(...) {}          
+
 Variables:
-Built-in types: int, float, char, string, bool, none
+Built-in simple types: int, float, char, string, bool, none
+Compound Types: struct, array
 
 <name> = <expression>
+<name> : <type> = <expression>  # first use only
 my_int = 10
 my_float = 10.3
 my_char = 't'
 my_string = "ten"
-my_bool = true
-my_none = my_none
+my_bool = true      # true, false are reserved words
+delete my_var   # remove from use and clean memory if relevent
 
 When a variable is created, the type is inferred. 
 x = 10       # x is inferred to be integer
@@ -19,10 +44,7 @@ x = 1.0      # error: x is an int, can't assign a float to int
 
 Expressions:
 Expressions can contain binary expressions, unary expressions, function calls, literals, etc
-
-Comments: 
-# this is a comment
-#( this is a multi-line comment )#
+x = (1 + 3) * (3 + some_func(10)) + my_array[10] 
 
 Operators: 
 

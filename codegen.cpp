@@ -125,6 +125,8 @@ void Codegen::genCodeblock(const Codeblock& cb){
             genIfBlock(get<IfBlock>(i));
         } else if(HAS<WhileBlock>(i)){
             genWhileBlock(get<WhileBlock>(i));
+        } else if(HAS<LoopBlock>(i)){
+            genLoopBlock(get<LoopBlock>(i));
         } else if(holds_alternative<ReturnLine>(i)){
             ReturnLine rl = get<ReturnLine>(i);
             if(rl.noneReturn){
@@ -245,15 +247,17 @@ void Codegen::genExpression(const Expression& e){
             raw(ex.name.value, "()");
         }
     }
-    // else if(holds_alternative<Array_index>(expr)){
-    //     Array_index ex = get<Array_index>(expr);
-    //     cout << ex.name.value << "(";
-    //     for(auto i : ex.args){
-    //         printExpression(i);
-    //         cout << ", ";
-    //     }
-    //     cout << "\b\b";
-    //     cout << ")";
+    else if(holds_alternative<Array_index>(expr)){
+        Array_index arr = get<Array_index>(expr);
+        raw(arr.name.value, ".get(");
+        for(int i = 0; i < arr.args.size(); i++){
+            genExpression(arr.args[i]); raw(".v");
+            if(i != arr.args.size() -1){
+                raw(", ");
+            }
+        }
+        raw(")");
+    }
     else if(holds_alternative<Binary_expr>(expr)){
         Binary_expr bin = get<Binary_expr>(expr);
         string func_name = func_table.cname(bin.op.value, 
@@ -307,6 +311,19 @@ void Codegen::genExpression(const Expression& e){
             }
         }
         raw("}");
+    } else if(holds_alternative<Array_literal>(expr)){
+        Array_literal a = get<Array_literal>(expr);
+        if(a.dims.size() != 1){
+            out("(work in progress)");
+        } 
+        out(e.type.cname(), "{");
+        bool first = true;
+        for(Expression& element : a.elements){
+            if(first == false){ out(", "); }
+            else { first = false; }
+            genExpression(element);
+        }  
+        out("}");
     }
     else {
         out("(work in progress)");
@@ -319,6 +336,16 @@ void Codegen::genWhileBlock(const WhileBlock& whileBlock){
     raw("){\n");
     indent();
     genCodeblock(whileBlock.cb);
+    dindent();
+    line("}");
+}
+
+void Codegen::genLoopBlock(const LoopBlock& LoopBlock){
+    tab(); raw("for(int i = "); 
+    genExpression(LoopBlock.number); raw(".v");
+    raw("; i > 0; i--){\n");
+    indent();
+    genCodeblock(LoopBlock.cb);
     dindent();
     line("}");
 }

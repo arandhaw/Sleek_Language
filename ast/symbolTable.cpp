@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ast_symboltable.h"
+#include "symbolTable.h"
 // TypeTable - all types in current module
 // holds types as unordered map: str -> type_info object
 // operations: add, check, info

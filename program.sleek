@@ -1,35 +1,19 @@
-
-struct C {
-    A a
-    B b
-}
-
-struct A {
-    int x
-}
-
-struct B {
-    int x
-}
-
-
-struct D {
-    int x
-    (int, (A, C)) y
-}
-
-
 # hi
-func main(){ 
-    x : int = 5
-    y : float = 3.0
-    z : (int, string) = (3, "abcd")
+func main(){
+    my_var = none
+    myArray = [1, 2, 3, 4, 5]
+    x = 4
+    while(x > 0){
+        print(myArray[x])
+    }
 }
 
-# hi
+#(
 func example(int x, (int,int) y, D z) -> (int, int){ 
     print(x)
 }
+)#
+
 
 
 

@@ -28,7 +28,7 @@ namespace lexer_globals {
     const std::unordered_set<std::string> ambiguous_operators = {"+", "-"};
     const std::unordered_set<std::string> assignment = {"=", "+=", "-=", "*=", "/=", "++", "--"};
     const std::unordered_set<std::string> keywords = {"fn", "return", "decl", "delete",
-                    "if", "elif", "else", "while", "do", "match", "struct", "for", "loop"};
+                    "if", "elif", "else", "while", "in", "match", "struct", "for", "loop"};
 
     //brackets
     const std::unordered_set<char> open_brackets = {'[', '{', '('};

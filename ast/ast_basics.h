@@ -2,6 +2,11 @@
 
 #define HAS holds_alternative
 
+#include "../lexer.cpp"
+#include "../utils.cpp"
+#include "symbolTable.cpp"
+
+// libraries
 #include <vector>
 #include <string>
 #include <variant>
@@ -9,12 +14,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
-
-#include "lexer.cpp"
-#include "utils.cpp"
-
-// include the other file
-#include "ast_symboltable.cpp"
 
 using namespace std;
 // ast for line : assignment, multiassignment, 
@@ -94,8 +93,16 @@ struct Array_index {
     Array_index(Token name);
 };
 
+struct Array_set {
+    Token name;
+    vector<Expression> args;
+    Expression *value;
+    Array_set(void){};
+    Array_set(Token name, vector<Expression>& args, Expression& value);
+};
+
 using Expr_value = variant<Literal, Unary_expr, Binary_expr, Variable, 
-                    Function_call, Array_index, Struct_init, Field_access, 
+                    Function_call, Array_index, Array_set, Struct_init, Field_access, 
                     Array_literal, Tuple_literal>;
 struct Expression {
     Type type;
@@ -124,11 +131,12 @@ struct Multi_Assignment {
 struct Codeblock;
 struct IfBlock;
 struct WhileBlock;
+struct LoopBlock;
 struct DeclVars;
 struct DeleteVars; 
 struct ReturnLine;
 using Basic_Line = variant<Expression, Assignment, Multi_Assignment, Empty>;
-using Line = variant<Basic_Line, Codeblock, IfBlock, WhileBlock, 
+using Line = variant<Basic_Line, Codeblock, IfBlock, WhileBlock, LoopBlock,
             DeclVars, DeleteVars, ReturnLine>;
 // class declarations
 class SymbolTable;
@@ -185,6 +193,11 @@ struct WhileBlock {
     Codeblock cb;
 };
 
+struct LoopBlock {
+    Expression number;
+    Codeblock cb;
+};
+
 struct DeclVars {
     vector<Token> variables;
 };
@@ -197,35 +210,3 @@ struct ReturnLine {
     bool noneReturn;
     Expression expr;
 };
-
-
-/////////// Function_table
-class Function_table {
-    private:
-        struct Func_Data {
-            Signature signature;
-            string cname;
-        };
-        unordered_multimap<string, Func_Data> table;
-    public:
-    
-    // add to function table
-    // return false if a duplicate signature exists
-    // the cname is the name of the corresponding c function
-    // if no name is provided, it will be automatically generated with $NAME
-    bool add(Signature f);
-    bool add(Signature f, const string& cname);
-    // return type of function
-    Option<Type> rtype(const string& name, const vector<Type>& params);
-
-    // search the table using the name and parameters
-    Option<Signature> search(const string& name, const vector<Type>& params);
-    // obtain the cname "codegen name" of the function
-    // precondition: the function exists
-    string cname(const string& name, const vector<Expression>& args);
-    // return number of function with said name
-    int check(const string& name);
-    
-    void printAll();
-} func_table;
-

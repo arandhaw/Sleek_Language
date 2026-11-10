@@ -1,13 +1,14 @@
 #pragma once
 
+#include "utils.cpp"
+#include "parser.cpp"
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
-#include "utils.cpp"
 
-#include "parser.cpp"
 
 
 class Codegen {
@@ -28,6 +29,7 @@ class Codegen {
     void genExpression(const Expression& e);
     void genIfBlock(const IfBlock& ifBlock);
     void genWhileBlock(const WhileBlock& whileBlock);
+    void genLoopBlock(const LoopBlock& LoopBlock);
 
     Codegen(){}
     // prepare file stream
